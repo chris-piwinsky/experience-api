@@ -1,6 +1,6 @@
 # Rules Integration and Dynamic Expansion
 
-This document explains how config/rules.yaml is intended to be integrated into checkout processing, how rule outcomes should map to API behavior, and how to expand rules safely over time.
+This document explains how config/rules.yaml is currently integrated into checkout processing in the Phase 11 POC, how rule outcomes map to API behavior, and how to expand rules safely over time.
 
 ## Scope
 
@@ -57,10 +57,10 @@ rules.yaml currently organizes policy into these sections:
 
 ```mermaid
 flowchart TD
-  Startup[Service startup] --> Load[Load config/rules.yaml]
-  Load --> Parse{Parse and schema valid?}
+  Startup[Service construction] --> Load[Load config/rules.yaml]
+  Load --> Parse{Parse and supported operators/actions valid?}
   Parse -- No --> ConfigErr[RULES_CONFIG_ERROR path]
-  Parse -- Yes --> Cache[Cache compiled rules by section]
+  Parse -- Yes --> Ready[Keep parsed config in RulesService instance]
 
   Patch[PATCH step] --> EvalPatch[Evaluate stepDependencies + field + eligibility + dynamic appliesTo step]
   Validate[POST validate] --> EvalValidate[Evaluate cross-step rules and aggregate issues]
@@ -73,43 +73,37 @@ flowchart TD
 
 ## Rules architecture
 
-This section describes the internal architecture of the rules subsystem as a standalone concern.
+This section describes the current POC architecture and separates it from the broader target architecture.
 
-### Core components
+### Current POC components
 
-- RulesConfigLoader
-  - Reads rules.yaml from config path.
-  - Produces raw config object and metadata (load time, version).
-- RulesConfigValidator
-  - Validates schema shape and required fields.
-  - Enforces allowed operator/action values.
-- RulesCompiler
-  - Normalizes rules into executable structures.
-  - Pre-sorts by priority and resolves appliesTo scopes.
-- RulesEvaluator
-  - Executes rules against request/journey context.
-  - Produces matched blocks, warnings, and mutations.
-- RulesOutcomeMapper
-  - Maps evaluator outcomes to API response contracts.
-  - Ensures canonical code/message/details structures.
-- RulesTelemetry
-  - Emits matched ruleIds, policyVersion, and evaluation timing.
+- RulesService
+  - Loads and parses rules.yaml when the service is constructed.
+  - Performs lightweight validation for supported operators and actions.
+  - Evaluates step dependencies, field rules, eligibility rules, and dynamic rules.
+  - Returns issues and any allowed payload mutation for the calling checkout service.
+- CheckoutService integration
+  - Invokes rules evaluation during PATCH, validate, and submit.
+  - Maps blocking issues to ApiError with canonical HTTP status codes.
+  - Preserves warning issues for validate responses and step-level validation state.
+
+### Target architecture for a future expansion
+
+- Dedicated loader, validator, compiler, cache, and telemetry components remain valid future directions.
+- Those components are not split out yet in the current POC implementation.
 
 ### Component diagram
 
 ```mermaid
 flowchart LR
-  File[config/rules.yaml] --> Loader[RulesConfigLoader]
-  Loader --> Validator[RulesConfigValidator]
-  Validator --> Compiler[RulesCompiler]
-  Compiler --> Cache[(Compiled Rules Cache)]
+  File[config/rules.yaml] --> Loader[RulesService constructor]
+  Loader --> Validator[Supported operator/action validation]
+  Validator --> Evaluator[RulesService evaluators]
 
-  Request[PATCH or validate or submit] --> Context[Evaluation Context Builder]
-  Cache --> Evaluator[RulesEvaluator]
+  Request[PATCH or validate or submit] --> Context[CheckoutService context builder]
   Context --> Evaluator
-  Evaluator --> Mapper[RulesOutcomeMapper]
+  Evaluator --> Mapper[CheckoutService ApiError mapping]
   Mapper --> API[API response layer]
-  Evaluator --> Telemetry[RulesTelemetry]
 ```
 
 ### Runtime sequence
@@ -117,54 +111,47 @@ flowchart LR
 ```mermaid
 sequenceDiagram
   participant RH as Route or Service Hook
-  participant RC as Rules Cache
-  participant EV as Rules Evaluator
-  participant MP as Outcome Mapper
+  participant RS as Rules Service
+  participant EV as Evaluators
+  participant MP as CheckoutService mapper
   participant API as API Layer
 
-  RH->>RC: getCompiledRules(policyVersion)
-  RC-->>RH: compiled rules set
-  RH->>EV: evaluate(context, rules)
-  EV-->>RH: blocks, warnings, mutations, matchedRuleIds
+  RH->>RS: evaluate(current journey context)
+  RS->>EV: run ordered rule families
+  EV-->>RH: issues and payload mutations
   RH->>MP: mapOutcomesToContract(outcomes)
   MP-->>API: canonical response model
 ```
 
 ### Interfaces and data contracts
 
-Recommended internal interfaces:
+Current POC interfaces:
 
-- evaluate(context, compiledRules) -> RuleEvaluationResult
-- mapEvaluation(result) -> mapped errors or warnings
-- getCompiledRules(version?) -> compiled immutable rules bundle
+- evaluateForStepUpdate(journey, stepId, payload) -> RulesEvaluationResult
+- evaluateForValidate(journey) -> RulesEvaluationResult
+- evaluateForSubmit(journey) -> RulesEvaluationResult
 
-Recommended RuleEvaluationResult fields:
+Current RulesEvaluationResult fields:
 
-- blocked: boolean
-- warnings: array
-- mutations: array
-- matchedRuleIds: array
-- evaluationMs: number
-- policyVersion: string
+- nextPayload: object
+- issues: array
 
 ### Caching and version strategy
 
-- Cache compiled rules in memory at startup for low-latency evaluation.
-- Keep policyVersion in the cache key and response telemetry.
-- On config reload or deployment, atomically swap cache reference.
-- Reject partial or invalid reloads and keep last known good compiled rules.
+- The current POC keeps the parsed config on the RulesService instance created by CheckoutService.
+- There is no hot reload, versioned cache, or last-known-good swap behavior yet.
+- If startup parsing or validation fails, the service returns RULES_CONFIG_ERROR during evaluation.
 
 ### Failure modes and fallback behavior
 
 - Config parse failure
-  - Startup path: fail fast or start in degraded mode by policy.
-  - Reload path: keep last known good compiled rules.
+  - Current behavior: keep an internal config error and return RULES_CONFIG_ERROR on rule evaluation.
 - Unknown operator or malformed action
-  - Follow unknownOperatorBehavior (recommended fail).
+  - Current behavior: fail validation during service construction and surface RULES_CONFIG_ERROR at runtime.
 - Mapper failure
-  - Return INTERNAL_ERROR while preserving requestId and correlationId.
+  - Current behavior: CheckoutService maps rule issues to ApiError before route error handling.
 - Telemetry failure
-  - Do not block request flow; degrade logging only.
+  - Not applicable yet because rules-specific telemetry is not implemented.
 
 ### Backward compatibility and rollout
 
@@ -186,11 +173,11 @@ Behavior controls from rules.yaml:
 
 - stopOnFirstBlock
   - true: first blocking rule short-circuits evaluation.
-  - false: accumulate blocks and warnings.
+  - false: supported by config shape, but the current POC behavior is only exercised with the default true setting.
 - defaultSeverity
-  - applied where rule severity is missing.
+  - present in config but not actively used by the current POC.
 - unknownOperatorBehavior
-  - fail: treat unknown operators as configuration/runtime errors.
+  - fail: treated as a rules configuration error during service construction.
 
 ## Error mapping conventions
 
@@ -199,14 +186,17 @@ Map rule outcomes to canonical API errors:
 - Missing/format validation -> VALIDATION_ERROR (400)
 - Eligibility policy violation -> CUSTOMER_NOT_ELIGIBLE (409)
 - Step dependency violation -> STEP_CONFLICT (409)
-- Rules file parse/load/runtime issue -> RULES_CONFIG_ERROR (500 or 503 based on policy)
+- Rules file parse/load/runtime issue -> RULES_CONFIG_ERROR (503)
 
-Recommended error details shape:
+Current error details shape:
 
-- ruleId
-- fieldPath
+- field
 - reason
-- severity
+
+Note:
+- field is populated from the validation issue fieldPath when present.
+- reason includes the ruleId prefix when a ruleId exists.
+- severity is preserved in validate response issues, not in the error details array.
 
 ## Dynamic rules action semantics
 
@@ -245,6 +235,7 @@ flowchart TD
 
 - Evaluate full-journey readiness and applicable rule families.
 - Return valid plus aggregated issues and warnings.
+- valid is true when all issues are warnings and false when any blocking issue is present.
 
 ### POST submit
 
@@ -300,6 +291,7 @@ For policy incidents:
 
 ## Known gaps
 
-- Runtime rules service implementation is pending.
-- Route/service currently enforce a subset of dependency and validation behavior directly.
-- Full warning/set_value output contract should be finalized before broad rollout.
+- Loader/compiler/cache/telemetry separation is still future work.
+- policyVersion is read from config shape but not surfaced in responses or logs.
+- set_value support is intentionally limited to one controlled target path.
+- Full warning/set_value response contracts should be finalized before broad rollout.
