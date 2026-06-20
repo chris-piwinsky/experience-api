@@ -87,3 +87,34 @@ Use the returned journey id and call:
 - POST /v1/checkout/journeys/{journeyId}/submit
 
 Reference sample payloads in ../checkout-journey-execution-plan.md.
+
+## 7) Reset and rebuild
+
+Use one of the following options depending on whether you want to preserve local uncommitted work.
+
+### Option A: clean local rebuild (non-destructive)
+
+This keeps your source files and git history, and only rebuilds dependencies and artifacts.
+
+```bash
+rm -rf node_modules dist
+npm install
+npm run build
+npm test
+npm start
+```
+
+### Option B: full reset to remote main (destructive)
+
+This discards all local uncommitted changes and removes untracked files.
+
+```bash
+git fetch origin
+git reset --hard origin/main
+git clean -fdx
+npm install
+npm run build
+npm test
+```
+
+Use Option B only when you intentionally want to return the workspace to the exact remote repository state.
