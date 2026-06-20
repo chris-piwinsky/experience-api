@@ -1,0 +1,31 @@
+meta {
+  name: Patch Shipping Address
+  type: http
+  seq: 3
+}
+
+patch {
+  url: "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/shipping-address"
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: "application/json"
+  x-request-id: "{{requestId}}"
+  x-correlation-id: "{{correlationId}}"
+}
+
+body:json {
+  {
+    "payload": {
+      "firstName": "Sam",
+      "lastName": "Taylor",
+      "line1": "101 Main St",
+      "city": "Austin",
+      "state": "TX",
+      "postalCode": "78701",
+      "country": "US"
+    }
+  }
+}

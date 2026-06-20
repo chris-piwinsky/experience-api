@@ -138,7 +138,7 @@ Rules-oriented checks run during step updates, validate, and before final submit
 
 - Unit tests: state transitions, prerequisites, validation, adapter deterministic outputs.
 - Integration tests: happy path, payment declined, inventory unavailable, fulfillment timeout, ID propagation.
-- Postman scenarios: full collection flows for happy, degraded, and rule-style checks.
+- Bruno scenarios: full request flows for happy, degraded, and rule-style checks.
 
 ## Support diagnostics expectations
 

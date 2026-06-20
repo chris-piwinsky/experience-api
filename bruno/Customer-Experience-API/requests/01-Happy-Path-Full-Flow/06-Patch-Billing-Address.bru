@@ -1,0 +1,29 @@
+meta {
+  name: Patch Billing Address
+  type: http
+  seq: 6
+}
+
+patch {
+  url: "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/billing-address"
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: "application/json"
+  x-request-id: "{{requestId}}"
+  x-correlation-id: "{{correlationId}}"
+}
+
+body:json {
+  {
+    "payload": {
+      "line1": "101 Main St",
+      "city": "Austin",
+      "state": "TX",
+      "postalCode": "78701",
+      "country": "US"
+    }
+  }
+}

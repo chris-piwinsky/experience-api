@@ -1,0 +1,28 @@
+meta {
+  name: Patch Cart
+  type: http
+  seq: 2
+}
+
+patch {
+  url: "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/cart"
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: "application/json"
+  x-request-id: "{{requestId}}"
+  x-correlation-id: "{{correlationId}}"
+}
+
+body:json {
+  {
+    "payload": {
+      "items": [
+        { "sku": "SKU-100", "name": "Demo Item", "quantity": 1, "unitPrice": 129.99 }
+      ],
+      "totalAmount": 129.99
+    }
+  }
+}

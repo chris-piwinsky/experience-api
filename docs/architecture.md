@@ -6,7 +6,7 @@ This service follows a contract-first Express + TypeScript structure with mocked
 
 ```mermaid
 flowchart LR
-  Client[Client App or Postman] --> App[Express App]
+  Client[Client App or API Client] --> App[Express App]
   App --> MW[Middleware Layer]
   MW --> Routes[Checkout Routes]
   Routes --> Service[Checkout Service]

@@ -17,7 +17,7 @@ Start here, then use the guides in docs/:
 - [docs/overview.md](docs/overview.md): documentation index and reading order.
 - [docs/quickstart.md](docs/quickstart.md): local setup, run steps, and first API request.
 - [docs/testing.md](docs/testing.md): test suites, commands, and degraded scenario guidance.
-- [docs/postman-guide.md](docs/postman-guide.md): Postman setup, payloads, and end-to-end scenario matrix.
+- [docs/bruno-guide.md](docs/bruno-guide.md): Bruno setup, request flow, payloads, and scenario matrix.
 - [docs/api-reference.md](docs/api-reference.md): endpoint and envelope summary aligned to OpenAPI.
 - [docs/customer-journey-requirements.md](docs/customer-journey-requirements.md): customer journey meaning, requirements, and acceptance boundaries.
 - [docs/rules-integration-and-expansion.md](docs/rules-integration-and-expansion.md): rules.yaml integration, evaluation behavior, and dynamic expansion guidance.
@@ -62,11 +62,12 @@ Detailed testing instructions and scenario coverage are in [docs/testing.md](doc
 - OpenAPI spec: [openapi.yaml](openapi.yaml)
 - Endpoint and envelope summary: [docs/api-reference.md](docs/api-reference.md)
 
-## Postman assets
+## Bruno assets
 
-- Collection file: [postman/Customer-Experience-API.postman_collection.json](postman/Customer-Experience-API.postman_collection.json)
-- Environment file: [postman/Local-Checkout-API.postman_environment.json](postman/Local-Checkout-API.postman_environment.json)
-- Usage guide: [docs/postman-guide.md](docs/postman-guide.md)
+- Collection metadata: [bruno/Customer-Experience-API/bruno.json](bruno/Customer-Experience-API/bruno.json)
+- Environment file: [bruno/Customer-Experience-API/environments/local.bru](bruno/Customer-Experience-API/environments/local.bru)
+- Requests tree: [bruno/Customer-Experience-API/requests](bruno/Customer-Experience-API/requests)
+- Usage guide: [docs/bruno-guide.md](docs/bruno-guide.md)
 
 ## Notes
 

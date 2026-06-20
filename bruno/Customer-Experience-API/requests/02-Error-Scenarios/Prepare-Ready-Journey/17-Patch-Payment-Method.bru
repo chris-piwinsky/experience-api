@@ -1,0 +1,26 @@
+meta {
+  name: Patch Payment Method
+  type: http
+  seq: 17
+}
+
+patch {
+  url: "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/payment-method"
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: "application/json"
+  x-request-id: "{{requestId}}"
+  x-correlation-id: "{{correlationId}}"
+}
+
+body:json {
+  {
+    "payload": {
+      "method": "card",
+      "cardLast4": "4242"
+    }
+  }
+}

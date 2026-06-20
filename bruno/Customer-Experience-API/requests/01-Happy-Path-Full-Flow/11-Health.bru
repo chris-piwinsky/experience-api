@@ -1,0 +1,15 @@
+meta {
+  name: Health
+  type: http
+  seq: 11
+}
+
+get {
+  url: "{{baseUrl}}/health"
+  auth: none
+}
+
+headers {
+  x-request-id: "{{requestId}}"
+  x-correlation-id: "{{correlationId}}"
+}

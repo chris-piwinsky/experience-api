@@ -1,0 +1,15 @@
+meta {
+  name: Submit - Fulfillment Timeout
+  type: http
+  seq: 21
+}
+
+post {
+  url: "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/submit"
+  auth: none
+}
+
+headers {
+  x-request-id: "{{requestId}}"
+  x-correlation-id: "{{correlationId}}"
+}

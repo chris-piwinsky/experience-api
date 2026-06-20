@@ -1,0 +1,15 @@
+meta {
+  name: Submit - Payment Declined
+  type: http
+  seq: 19
+}
+
+post {
+  url: "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/submit"
+  auth: none
+}
+
+headers {
+  x-request-id: "{{requestId}}"
+  x-correlation-id: "{{correlationId}}"
+}

@@ -250,10 +250,10 @@ flowchart TD
 4. Add deterministic test coverage:
   - unit tests for rule evaluation behavior
   - integration test for endpoint-visible outcome
-  - postman scenario update when user-facing behavior changes
+  - bruno scenario update when user-facing behavior changes
 5. Update docs:
   - customer-journey-requirements.md if business behavior changed
-  - postman-guide.md if new scenario should be demonstrated
+  - bruno-guide.md if new scenario should be demonstrated
 
 ## Example expansion patterns
 

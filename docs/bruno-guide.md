@@ -1,42 +1,43 @@
-# Postman Setup and Scenario Testing Guide
+# Bruno Setup and Scenario Testing Guide
 
-This guide shows how to configure Postman and run all major API scenarios for the checkout journey service.
+This guide shows how to use the Bruno collection in this repository to run all major API scenarios for the checkout journey service.
 
-## Importable Postman Assets
+## Bruno Assets
 
-- Collection: [postman/Customer-Experience-API.postman_collection.json](../postman/Customer-Experience-API.postman_collection.json)
-- Environment: [postman/Local-Checkout-API.postman_environment.json](../postman/Local-Checkout-API.postman_environment.json)
+- Collection metadata: [bruno/Customer-Experience-API/bruno.json](../bruno/Customer-Experience-API/bruno.json)
+- Environment: [bruno/Customer-Experience-API/environments/local.bru](../bruno/Customer-Experience-API/environments/local.bru)
+- Requests: [bruno/Customer-Experience-API/requests](../bruno/Customer-Experience-API/requests)
 
-Import both files into Postman, then select the Local Checkout API environment before running requests.
+Open the [bruno/Customer-Experience-API](../bruno/Customer-Experience-API) folder in Bruno.
 
 ## Collection Sequence Diagram
 
 ```mermaid
 sequenceDiagram
   participant U as User
-  participant P as Postman Collection
+  participant B as Bruno Collection
   participant API as Checkout API
 
-  U->>P: Run collection
-  P->>API: POST create journey
-  API-->>P: 201 with journeyId
-  P->>P: Save journeyId in environment
-  P->>API: PATCH cart
-  P->>API: PATCH shipping-address
-  P->>API: PATCH delivery-method
-  P->>API: PATCH payment-method
-  P->>API: PATCH billing-address
-  P->>API: PATCH promo-code
-  P->>API: POST validate
-  P->>API: POST submit
-  P->>API: GET health
-  API-->>P: success or deterministic degraded responses
+  U->>B: Run requests in order
+  B->>API: POST create journey
+  API-->>B: 201 with journeyId
+  U->>B: Set journeyId env var from response
+  B->>API: PATCH cart
+  B->>API: PATCH shipping-address
+  B->>API: PATCH delivery-method
+  B->>API: PATCH payment-method
+  B->>API: PATCH billing-address
+  B->>API: PATCH promo-code
+  B->>API: POST validate
+  B->>API: POST submit
+  B->>API: GET health
+  API-->>B: success or deterministic degraded responses
 ```
 
 ## Prerequisites
 
 - API running locally at http://localhost:3000
-- Postman desktop app or web client
+- Bruno app installed
 
 ## 1) Environment Variables
 
@@ -45,8 +46,8 @@ The provided environment file includes:
 - baseUrl = http://localhost:3000
 - journeyId = (leave blank initially)
 - customerId = cust-1001
-- requestId = req-postman-1
-- correlationId = corr-postman-1
+- requestId = req-initial
+- correlationId = corr-initial
 
 Optional scenario variables for manual tracking:
 
@@ -56,11 +57,11 @@ Optional scenario variables for manual tracking:
 
 ## 2) Collection Structure
 
-The provided collection includes three runnable folders:
+The Bruno request tree includes three runnable folders:
 
-1. 01 - Happy Path Full Flow
-2. 02 - Error Scenarios
-3. 03 - Rule Config and Validation Scenarios
+1. 01-Happy-Path-Full-Flow
+2. 02-Error-Scenarios
+3. 03-Rule-Config-and-Validation-Scenarios
 
 Within those folders, requests are organized in this flow order:
 
@@ -75,13 +76,21 @@ Within those folders, requests are organized in this flow order:
 9. POST {{baseUrl}}/v1/checkout/journeys/{{journeyId}}/submit
 10. GET {{baseUrl}}/health
 
-For every request, add headers:
+For every request, keep headers:
 
 - Content-Type: application/json
 - x-request-id: {{requestId}}
 - x-correlation-id: {{correlationId}}
 
-## 3) Request payloads
+## 3) No-Script Workflow Notes
+
+This Bruno collection intentionally has no pre-request or test scripts.
+
+- After each create journey request, copy response data.id into environment variable journeyId before running patch/validate/submit requests.
+- Update requestId and correlationId manually when needed.
+- Verify status code and payload fields directly in Bruno response panels.
+
+## 4) Request payloads
 
 ### Create journey
 
@@ -91,20 +100,6 @@ For every request, add headers:
   "currency": "USD",
   "locale": "en-US"
 }
-```
-
-Post-response Tests script for create request:
-
-```javascript
-pm.test("Created", function () {
-  pm.response.to.have.status(201);
-});
-const json = pm.response.json();
-pm.environment.set("journeyId", json.data.id);
-pm.test("ID propagation", function () {
-  pm.expect(json.requestId).to.exist;
-  pm.expect(json.correlationId).to.exist;
-});
 ```
 
 ### cart
@@ -189,9 +184,9 @@ No body required.
 
 No body required.
 
-## 4) Scenario matrix
+## 5) Scenario matrix
 
-Set API environment variables before starting the server, then run the matching collection requests.
+Set API environment variables before starting the server, then run the matching Bruno requests.
 
 ### Happy path submit
 
@@ -207,7 +202,7 @@ Expected submit:
 - data.status is submitted
 - data.submittedOrderId exists
 
-Run folder: 01 - Happy Path Full Flow
+Run folder: 01-Happy-Path-Full-Flow
 
 ### Payment declined
 
@@ -220,11 +215,11 @@ Expected submit:
 - HTTP 409
 - code is PAYMENT_DECLINED
 
-Run folder: 02 - Error Scenarios
+Run folder: 02-Error-Scenarios
 Run requests:
 
-1. Prepare Ready Journey
-2. Submit - Payment Declined
+1. Prepare-Ready-Journey requests
+2. Submit-Payment-Declined
 
 ### Inventory unavailable
 
@@ -237,11 +232,11 @@ Expected submit:
 - HTTP 409
 - code is INVENTORY_UNAVAILABLE
 
-Run folder: 02 - Error Scenarios
+Run folder: 02-Error-Scenarios
 Run requests:
 
-1. Prepare Ready Journey
-2. Submit - Inventory Unavailable
+1. Prepare-Ready-Journey requests
+2. Submit-Inventory-Unavailable
 
 ### Fulfillment timeout
 
@@ -254,13 +249,13 @@ Expected submit:
 - HTTP 503
 - code is FULFILLMENT_TIMEOUT
 
-Run folder: 02 - Error Scenarios
+Run folder: 02-Error-Scenarios
 Run requests:
 
-1. Prepare Ready Journey
-2. Submit - Fulfillment Timeout
+1. Prepare-Ready-Journey requests
+2. Submit-Fulfillment-Timeout
 
-## 5) Validation and step-conflict checks
+## 6) Validation and step-conflict checks
 
 ### Validation-style bad payload example
 
@@ -280,13 +275,13 @@ Use invalid shipping-address payload:
 }
 ```
 
-This now evaluates through the Phase 11 rules service and should return:
+Expected:
 
 - HTTP 400
 - code is VALIDATION_ERROR
 - details include the field path and rule identifier
 
-In collection: Rule-style Invalid Postal
+In requests: Rule-style-Invalid-Postal
 
 ### Eligibility rule check
 
@@ -306,19 +301,11 @@ Expected:
 - code is CUSTOMER_NOT_ELIGIBLE
 - details include the eligibility rule identifier
 
-In collection: Rule-style NY Cash On Delivery
+In requests: Rule-style-NY-Cash-On-Delivery
 
 ### Warning-only validate example
 
-Use a PO Box shipping line and overnight delivery:
-
-```json
-{
-  "payload": {
-    "method": "overnight"
-  }
-}
-```
+Use a PO Box shipping line and overnight delivery.
 
 Expected validate response:
 
@@ -343,31 +330,7 @@ Expected:
 - HTTP 409
 - code is STEP_CONFLICT
 
-In collection: Step Conflict - Review Submit Too Early
-
-## 6) Common Postman Tests script
-
-Attach this Tests script to update, validate, and submit requests:
-
-```javascript
-const json = pm.response.json();
-pm.test("requestId exists", function () {
-  pm.expect(json.requestId).to.exist;
-});
-pm.test("correlationId exists", function () {
-  pm.expect(json.correlationId).to.exist;
-});
-```
-
-For failure requests, add:
-
-```javascript
-pm.test("error code exists", function () {
-  const json = pm.response.json();
-  pm.expect(json.code).to.exist;
-  pm.expect(json.message).to.exist;
-});
-```
+In requests: Step-Conflict-Review-Submit-Too-Early
 
 ## 7) Health endpoint checks
 

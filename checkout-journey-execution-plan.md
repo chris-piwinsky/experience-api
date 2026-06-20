@@ -119,7 +119,7 @@ Create this structure:
 - docs/overview.md
 - docs/quickstart.md
 - docs/testing.md
-- docs/postman-guide.md
+- docs/bruno-guide.md
 - docs/api-reference.md
 - docs/architecture.md
 - docs/mock-scenarios.md
@@ -240,7 +240,7 @@ Tasks:
    - docs/overview.md
    - docs/quickstart.md
    - docs/testing.md
-   - docs/postman-guide.md
+   - docs/bruno-guide.md
    - docs/api-reference.md
    - docs/architecture.md
    - docs/mock-scenarios.md
@@ -338,7 +338,7 @@ Tasks:
    - dynamicRules (priority desc, then ruleId)
 5. Map outcomes to canonical API model with consistent codes, statuses, and detail shape.
 6. Add focused unit and integration tests for rule outcomes and mapping behavior.
-7. Update Postman/docs where user-visible behavior changes.
+7. Update Bruno/docs where user-visible behavior changes.
 
 Done when:
 
@@ -417,9 +417,9 @@ Goal: keep validation and eligibility logic configurable so business policy upda
 - Add tests per rule in unit tests and at least one integration test per rule family.
 - Record rule changes in this plan Decision Log with date and reason.
 
-## Postman Sample Payloads and Scenario Matrix
+## Bruno Sample Payloads and Scenario Matrix
 
-### Postman environment variables
+### Bruno environment variables
 
 - baseUrl: http://localhost:3000
 - journeyId: set after create call
@@ -448,15 +448,9 @@ Goal: keep validation and eligibility logic configurable so business policy upda
 }
 ```
 
-Postman test script for create request:
+Bruno no-script workflow note for create request:
 
-```javascript
-pm.test("Created", function () {
-   pm.response.to.have.status(201);
-});
-const json = pm.response.json();
-pm.environment.set("journeyId", json.data.id);
-```
+Capture `data.id` from the create response and set `journeyId` in the Bruno environment before running patch, validate, or submit requests.
 
 ### Happy-path step payloads
 
@@ -594,7 +588,7 @@ Step dependency conflict (set review-submit before required steps, expect 409 ST
    - MOCK_FULFILLMENT_SCENARIO=timeout
    - Expect 503
 
-### Response assertions for Postman tests
+### Response checks in Bruno
 
 Check on every request:
 
@@ -764,7 +758,7 @@ Requirements:
 - Create docs/customer-journey-requirements.md to explain the meaning of the customer journey and requirements around it.
 - Include business goals, actor expectations, checkout step intent, and acceptance criteria.
 - Include functional and non-functional requirements, deterministic scenario expectations, and clear out-of-scope boundaries.
-- Map requirements to API endpoints and test/postman scenarios where applicable.
+- Map requirements to API endpoints and test/Bruno scenarios where applicable.
 - Do not implement work outside Phase 9.
 - Summarize what was added and any requirement gaps that remain.
 Deliverables:
@@ -803,7 +797,7 @@ Requirements:
 - Integrate rules checks into PATCH step updates, POST validate, and POST submit.
 - Keep deterministic evaluation order and stable mapping to canonical error model.
 - Add or update tests for rule evaluation and API-visible outcomes.
-- Update docs/postman where behavior changes.
+- Update docs/bruno-guide where behavior changes.
 - Do not implement work outside Phase 11.
 - Run build and tests and summarize results.
 Deliverables:

@@ -1,0 +1,16 @@
+meta {
+  name: Validate Journey
+  type: http
+  seq: 9
+}
+
+post {
+  url: "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/validate"
+  auth: none
+}
+
+headers {
+  Content-Type: "application/json"
+  x-request-id: "{{requestId}}"
+  x-correlation-id: "{{correlationId}}"
+}

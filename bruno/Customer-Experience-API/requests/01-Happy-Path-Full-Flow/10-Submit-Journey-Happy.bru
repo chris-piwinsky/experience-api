@@ -1,0 +1,16 @@
+meta {
+  name: Submit Journey - Happy
+  type: http
+  seq: 10
+}
+
+post {
+  url: "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/submit"
+  auth: none
+}
+
+headers {
+  Content-Type: "application/json"
+  x-request-id: "{{requestId}}"
+  x-correlation-id: "{{correlationId}}"
+}
