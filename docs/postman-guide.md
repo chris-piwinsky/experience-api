@@ -280,9 +280,51 @@ Use invalid shipping-address payload:
 }
 ```
 
-Note: strict field-format validation is planned for rules-driven enforcement; current behavior may vary based on implemented rule service.
+This now evaluates through the Phase 11 rules service and should return:
 
-In collection: Rule-style Invalid Postal (planned behavior)
+- HTTP 400
+- code is VALIDATION_ERROR
+- details include the field path and rule identifier
+
+In collection: Rule-style Invalid Postal
+
+### Eligibility rule check
+
+Set shipping-address state to NY, then use this payment-method payload:
+
+```json
+{
+  "payload": {
+    "method": "cash_on_delivery"
+  }
+}
+```
+
+Expected:
+
+- HTTP 409
+- code is CUSTOMER_NOT_ELIGIBLE
+- details include the eligibility rule identifier
+
+In collection: Rule-style NY Cash On Delivery
+
+### Warning-only validate example
+
+Use a PO Box shipping line and overnight delivery:
+
+```json
+{
+  "payload": {
+    "method": "overnight"
+  }
+}
+```
+
+Expected validate response:
+
+- HTTP 200
+- data.valid is true
+- data.issues includes a warning with ruleId DYN-WARN-POBOX-EXPRESS
 
 ### Step dependency conflict
 

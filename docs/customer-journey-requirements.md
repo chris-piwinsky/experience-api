@@ -110,13 +110,14 @@ flowchart TD
 
 ## Rules and scenario expectations
 
-Rules-oriented checks are expected to run before final submit orchestration in the target design.
+Rules-oriented checks run during step updates, validate, and before final submit orchestration.
 
 - Field-format and missing-value issues should produce VALIDATION_ERROR.
 - Eligibility-policy violations should produce a policy conflict code.
 - Scenario toggles remain deterministic controls for downstream adapter outcomes.
 
-Until rules service implementation is completed, some rule-style examples are documented as planned behavior.
+- Card payments require billing postal code before submit can succeed.
+- Warning rules may appear in validate results without making the journey invalid.
 
 ## Requirement-to-endpoint mapping
 

@@ -63,6 +63,16 @@ async function createJourneyAndCompleteRequiredSteps(
     payload: { method: "card", cardLast4: "4242" },
   });
 
+  await app.patch(`/v1/checkout/journeys/${journeyId}/steps/billing-address`).set(headers).send({
+    payload: {
+      line1: "101 Main St",
+      city: "Austin",
+      state: "TX",
+      postalCode: "78701",
+      country: "US",
+    },
+  });
+
   await app.patch(`/v1/checkout/journeys/${journeyId}/steps/review-submit`).set(headers).send({
     payload: { confirmed: true },
   });
@@ -175,5 +185,165 @@ describe("Checkout API integration", () => {
     expect(response.body.checks.payment.scenario).toBe("declined");
     expect(response.body.requestId).toBeTruthy();
     expect(response.body.correlationId).toBeTruthy();
+  });
+
+  it("blocks invalid shipping postal codes on step update with rule details", async () => {
+    const app = loadApp();
+    const headers = {
+      "x-request-id": "req-invalid-postal",
+      "x-correlation-id": "corr-invalid-postal",
+    };
+
+    const createResponse = await app.post("/v1/checkout/journeys").set(headers).send({
+      customerId: "cust-1001",
+      currency: "USD",
+      locale: "en-US",
+    });
+
+    const journeyId = createResponse.body.data.id as string;
+
+    await app.patch(`/v1/checkout/journeys/${journeyId}/steps/cart`).set(headers).send({
+      payload: {
+        items: [{ sku: "SKU-100", quantity: 1 }],
+        totalAmount: 129.99,
+      },
+    });
+
+    const response = await app.patch(`/v1/checkout/journeys/${journeyId}/steps/shipping-address`).set(headers).send({
+      payload: {
+        firstName: "Sam",
+        lastName: "Taylor",
+        line1: "101 Main St",
+        city: "Austin",
+        state: "TX",
+        postalCode: "ABC",
+        country: "US",
+      },
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe("VALIDATION_ERROR");
+    expect(response.body.details).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          field: "shipping-address.postalCode",
+          reason: expect.stringContaining("FIELD-FORMAT-shipping-address-postalCode"),
+        }),
+      ]),
+    );
+  });
+
+  it("blocks cash on delivery for NY shipping on payment-method step update", async () => {
+    const app = loadApp();
+    const headers = {
+      "x-request-id": "req-ny-cod",
+      "x-correlation-id": "corr-ny-cod",
+    };
+
+    const createResponse = await app.post("/v1/checkout/journeys").set(headers).send({
+      customerId: "cust-1001",
+      currency: "USD",
+      locale: "en-US",
+    });
+
+    const journeyId = createResponse.body.data.id as string;
+
+    await app.patch(`/v1/checkout/journeys/${journeyId}/steps/cart`).set(headers).send({
+      payload: {
+        items: [{ sku: "SKU-100", quantity: 1 }],
+        totalAmount: 129.99,
+      },
+    });
+
+    await app.patch(`/v1/checkout/journeys/${journeyId}/steps/shipping-address`).set(headers).send({
+      payload: {
+        firstName: "Sam",
+        lastName: "Taylor",
+        line1: "101 Main St",
+        city: "New York",
+        state: "NY",
+        postalCode: "10001",
+        country: "US",
+      },
+    });
+
+    await app.patch(`/v1/checkout/journeys/${journeyId}/steps/delivery-method`).set(headers).send({
+      payload: { method: "standard" },
+    });
+
+    const response = await app.patch(`/v1/checkout/journeys/${journeyId}/steps/payment-method`).set(headers).send({
+      payload: { method: "cash_on_delivery" },
+    });
+
+    expect(response.status).toBe(409);
+    expect(response.body.code).toBe("CUSTOMER_NOT_ELIGIBLE");
+    expect(response.body.details).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          field: "payment-method.method",
+          reason: expect.stringContaining("ELIGIBILITY-STATE-COD-BLOCK"),
+        }),
+      ]),
+    );
+  });
+
+  it("returns warning issues during validate without failing the journey", async () => {
+    const app = loadApp();
+    const headers = {
+      "x-request-id": "req-warning-validate",
+      "x-correlation-id": "corr-warning-validate",
+    };
+
+    const createResponse = await app.post("/v1/checkout/journeys").set(headers).send({
+      customerId: "cust-1001",
+      currency: "USD",
+      locale: "en-US",
+    });
+
+    const journeyId = createResponse.body.data.id as string;
+
+    await app.patch(`/v1/checkout/journeys/${journeyId}/steps/cart`).set(headers).send({
+      payload: {
+        items: [{ sku: "SKU-100", quantity: 1 }],
+        totalAmount: 129.99,
+      },
+    });
+
+    await app.patch(`/v1/checkout/journeys/${journeyId}/steps/shipping-address`).set(headers).send({
+      payload: {
+        firstName: "Sam",
+        lastName: "Taylor",
+        line1: "PO Box 101",
+        city: "Austin",
+        state: "TX",
+        postalCode: "78701",
+        country: "US",
+      },
+    });
+
+    await app.patch(`/v1/checkout/journeys/${journeyId}/steps/delivery-method`).set(headers).send({
+      payload: { method: "overnight" },
+    });
+
+    await app.patch(`/v1/checkout/journeys/${journeyId}/steps/payment-method`).set(headers).send({
+      payload: { method: "paypal" },
+    });
+
+    await app.patch(`/v1/checkout/journeys/${journeyId}/steps/review-submit`).set(headers).send({
+      payload: { confirmed: true },
+    });
+
+    const response = await app.post(`/v1/checkout/journeys/${journeyId}/validate`).set(headers).send({});
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.valid).toBe(true);
+    expect(response.body.data.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "DYN-WARN-POBOX-EXPRESS",
+          severity: "warning",
+        }),
+      ]),
+    );
   });
 });

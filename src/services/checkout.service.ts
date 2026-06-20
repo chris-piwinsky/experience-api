@@ -13,6 +13,7 @@ import {
   type PaymentAdapter,
 } from "../adapters/payment.adapter";
 import { InMemoryJourneysStore, type JourneysStore } from "../data/journeys.store";
+import { createRulesService, type RulesService } from "./rules.service";
 import { ApiError } from "../types/api-error";
 import {
   createInitialSteps,
@@ -23,21 +24,13 @@ import {
   type ValidationIssue,
 } from "../types/checkout";
 
-const STEP_PREREQUISITES: Partial<Record<CheckoutStepId, CheckoutStepId[]>> = {
-  "shipping-address": ["cart"],
-  "delivery-method": ["shipping-address"],
-  "payment-method": ["delivery-method"],
-  "billing-address": ["payment-method"],
-  "promo-code": ["cart"],
-  "review-submit": ["cart", "shipping-address", "delivery-method", "payment-method"],
-};
-
 export class CheckoutService {
   constructor(
     private readonly store: JourneysStore,
     private readonly inventoryAdapter: InventoryAdapter,
     private readonly paymentAdapter: PaymentAdapter,
     private readonly fulfillmentAdapter: FulfillmentAdapter,
+    private readonly rulesService: RulesService = createRulesService(),
   ) {}
 
   createJourney(input: CreateJourneyInput): CheckoutJourney {
@@ -76,7 +69,9 @@ export class CheckoutService {
   ): CheckoutJourney {
     const journey = this.getJourneyById(journeyId);
 
-    this.assertStepPrerequisites(journey, stepId);
+    const rulesResult = this.rulesService.evaluateForStepUpdate(journey, stepId, payload);
+    this.assertBlockingIssues(rulesResult.issues);
+    const nextValidationIssues = rulesResult.issues.filter((issue) => issue.severity === "warning");
 
     const now = new Date().toISOString();
     const nextJourney: CheckoutJourney = {
@@ -85,18 +80,18 @@ export class CheckoutService {
         ...journey.steps,
         [stepId]: {
           completed: true,
-          payload,
+          payload: rulesResult.nextPayload,
           updatedAt: now,
         },
       },
-      validationIssues: [],
+      validationIssues: nextValidationIssues,
       status: this.computeJourneyStatus({
         ...journey,
         steps: {
           ...journey.steps,
           [stepId]: {
             completed: true,
-            payload,
+            payload: rulesResult.nextPayload,
             updatedAt: now,
           },
         },
@@ -109,10 +104,11 @@ export class CheckoutService {
 
   validateJourney(journeyId: string): { valid: boolean; issues: ValidationIssue[] } {
     const journey = this.getJourneyById(journeyId);
-    const issues = this.computeValidationIssues(journey);
+    const rulesResult = this.rulesService.evaluateForValidate(journey);
+    const issues = [...this.computeValidationIssues(journey), ...rulesResult.issues];
 
     return {
-      valid: issues.length === 0,
+      valid: issues.every((issue) => issue.severity === "warning"),
       issues,
     };
   }
@@ -121,17 +117,15 @@ export class CheckoutService {
     const journey = this.getJourneyById(journeyId);
     const validationResult = this.validateJourney(journeyId);
 
+    const submitRulesResult = this.rulesService.evaluateForSubmit(journey);
+    const submitBlockingIssues = submitRulesResult.issues.filter((issue) => issue.severity !== "warning");
+    if (submitBlockingIssues.length > 0) {
+      this.throwFromIssues("Checkout journey failed policy checks before submit", submitBlockingIssues);
+    }
+
     // Validation issues are flattened into API error details so clients can render field-level messages.
     if (!validationResult.valid) {
-      throw new ApiError(
-        "VALIDATION_ERROR",
-        "Checkout journey is not ready for submit",
-        400,
-        validationResult.issues.map((issue) => ({
-          field: issue.fieldPath,
-          reason: issue.message,
-        })),
-      );
+      this.throwFromIssues("Checkout journey is not ready for submit", validationResult.issues);
     }
 
     const cartPayload = (journey.steps.cart.payload ?? {}) as Record<string, unknown>;
@@ -189,21 +183,6 @@ export class CheckoutService {
     return this.store.update(submittedJourney);
   }
 
-  private assertStepPrerequisites(journey: CheckoutJourney, stepId: CheckoutStepId): void {
-    const requiredSteps = STEP_PREREQUISITES[stepId] ?? [];
-
-    // Prerequisite guard keeps step progression deterministic and prevents partial submit state.
-    for (const requiredStep of requiredSteps) {
-      if (!journey.steps[requiredStep].completed) {
-        throw new ApiError(
-          "STEP_CONFLICT",
-          `${requiredStep} must be completed before ${stepId}`,
-          409,
-        );
-      }
-    }
-  }
-
   private computeJourneyStatus(journey: CheckoutJourney): CheckoutStatus {
     if (journey.status === "submitted" || journey.status === "failed") {
       return journey.status;
@@ -251,6 +230,44 @@ export class CheckoutService {
 
     return issues;
   }
+
+  private assertBlockingIssues(issues: ValidationIssue[]): void {
+    const blockingIssues = issues.filter((issue) => issue.severity !== "warning");
+    if (blockingIssues.length > 0) {
+      this.throwFromIssues("Checkout step update failed policy checks", blockingIssues);
+    }
+  }
+
+  private throwFromIssues(message: string, issues: ValidationIssue[]): never {
+    const blockingIssues = issues.filter((issue) => issue.severity !== "warning");
+    const firstIssue = blockingIssues[0] ?? issues[0];
+    const code = firstIssue?.code ?? "VALIDATION_ERROR";
+    const status = this.statusForCode(code);
+
+    throw new ApiError(
+      code,
+      firstIssue?.message ?? message,
+      status,
+      issues.map((issue) => ({
+        field: issue.fieldPath,
+        reason: `${issue.ruleId ? `${issue.ruleId}: ` : ""}${issue.message}`,
+      })),
+    );
+  }
+
+  private statusForCode(code: string): number {
+    if (code === "VALIDATION_ERROR") {
+      return 400;
+    }
+    if (code === "RULES_CONFIG_ERROR") {
+      return 503;
+    }
+    if (code === "STEP_CONFLICT" || code === "CUSTOMER_NOT_ELIGIBLE") {
+      return 409;
+    }
+
+    return 400;
+  }
 }
 
 export function createCheckoutService(
@@ -258,6 +275,7 @@ export function createCheckoutService(
   inventoryAdapter: InventoryAdapter = createInventoryAdapter(),
   paymentAdapter: PaymentAdapter = createPaymentAdapter(),
   fulfillmentAdapter: FulfillmentAdapter = createFulfillmentAdapter(),
+  rulesService: RulesService = createRulesService(),
 ): CheckoutService {
-  return new CheckoutService(store, inventoryAdapter, paymentAdapter, fulfillmentAdapter);
+  return new CheckoutService(store, inventoryAdapter, paymentAdapter, fulfillmentAdapter, rulesService);
 }

@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Customer Experience API - Checkout Journey",
-    "description": "Postman collection for full checkout flows, degraded scenarios, and rule-style validation checks.\n\nHow to use:\n1) Import this collection and the Local environment file.\n2) Start API with scenario env vars you want to test.\n3) Run folder 01 for happy path.\n4) Run folder 02 with the matching server scenario.\n5) Run folder 03 for step-conflict and rule-style examples.\n\nNote: rule-style checks are documented for planned rules engine behavior and may vary until rules service is implemented.",
+    "description": "Postman collection for full checkout flows, degraded scenarios, and rules-service validation checks.\n\nHow to use:\n1) Import this collection and the Local environment file.\n2) Start API with scenario env vars you want to test.\n3) Run folder 01 for happy path.\n4) Run folder 02 with the matching server scenario.\n5) Run folder 03 for step-conflict and rules-service examples.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -249,7 +249,7 @@
                   { "key": "x-request-id", "value": "{{requestId}}" },
                   { "key": "x-correlation-id", "value": "{{correlationId}}" }
                 ],
-                "body": { "mode": "raw", "raw": "{\n  \"payload\": {\n    \"line1\": \"101 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"78701\",\n    \"country\": \"US\"\n  }\n}" },
+                "body": { "mode": "raw", "raw": "{\n  \"payload\": {\n    \"firstName\": \"Sam\",\n    \"lastName\": \"Taylor\",\n    \"line1\": \"101 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"78701\",\n    \"country\": \"US\"\n  }\n}" },
                 "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/shipping-address"
               }
             },
@@ -264,6 +264,19 @@
                 ],
                 "body": { "mode": "raw", "raw": "{\n  \"payload\": {\n    \"method\": \"standard\"\n  }\n}" },
                 "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/delivery-method"
+              }
+            },
+            {
+              "name": "Patch Billing Address",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "x-request-id", "value": "{{requestId}}" },
+                  { "key": "x-correlation-id", "value": "{{correlationId}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"payload\": {\n    \"line1\": \"101 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"78701\",\n    \"country\": \"US\"\n  }\n}" },
+                "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/billing-address"
               }
             },
             {
@@ -364,7 +377,7 @@
           "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('status is 409', () => pm.response.to.have.status(409));", "const json = pm.response.json();", "pm.test('error code is STEP_CONFLICT', () => pm.expect(json.code).to.eql('STEP_CONFLICT'));"] } }]
         },
         {
-          "name": "Rule-style Invalid Postal (planned behavior)",
+          "name": "Rule-style Invalid Postal",
           "request": {
             "method": "PATCH",
             "header": [
@@ -378,10 +391,10 @@
             },
             "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/shipping-address"
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["const status = pm.response.code;", "pm.test('current or planned rule behavior', () => pm.expect([200, 400]).to.include(status));"] } }]
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('status is 400', () => pm.response.to.have.status(400));", "const json = pm.response.json();", "pm.test('error code is VALIDATION_ERROR', () => pm.expect(json.code).to.eql('VALIDATION_ERROR'));"] } }]
         },
         {
-          "name": "Rule-style NY Cash On Delivery (planned behavior)",
+          "name": "Rule-style NY Cash On Delivery",
           "request": {
             "method": "PATCH",
             "header": [
@@ -395,7 +408,7 @@
             },
             "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/payment-method"
           },
-          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["const status = pm.response.code;", "pm.test('current or planned rule behavior', () => pm.expect([200, 409]).to.include(status));"] } }]
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('status is 409', () => pm.response.to.have.status(409));", "const json = pm.response.json();", "pm.test('error code is CUSTOMER_NOT_ELIGIBLE', () => pm.expect(json.code).to.eql('CUSTOMER_NOT_ELIGIBLE'));"] } }]
         }
       ]
     }

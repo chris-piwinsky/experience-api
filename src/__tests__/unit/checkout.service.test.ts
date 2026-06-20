@@ -37,6 +37,8 @@ function completeRequiredSteps(service: CheckoutService, journeyId: string): voi
     totalAmount: 129.99,
   });
   service.updateJourneyStep(journeyId, "shipping-address", {
+    firstName: "Sam",
+    lastName: "Taylor",
     line1: "101 Main St",
     city: "Austin",
     state: "TX",
@@ -45,6 +47,13 @@ function completeRequiredSteps(service: CheckoutService, journeyId: string): voi
   });
   service.updateJourneyStep(journeyId, "delivery-method", { method: "standard" });
   service.updateJourneyStep(journeyId, "payment-method", { method: "card", cardLast4: "4242" });
+  service.updateJourneyStep(journeyId, "billing-address", {
+    line1: "101 Main St",
+    city: "Austin",
+    state: "TX",
+    postalCode: "78701",
+    country: "US",
+  });
   service.updateJourneyStep(journeyId, "review-submit", { confirmed: true });
 }
 

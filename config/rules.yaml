@@ -96,6 +96,18 @@ fieldRules:
           - paypal
           - cash_on_delivery
 
+  delivery-method:
+    required:
+      - method
+    formats:
+      method:
+        type: enum
+        allowed:
+          - standard
+          - express
+          - same_day
+          - overnight
+
 eligibilityRules:
   - ruleId: "ELIGIBILITY-STATE-COD-BLOCK"
     enabled: true

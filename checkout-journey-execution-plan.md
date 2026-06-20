@@ -316,6 +316,36 @@ Done when:
 - Engineers can implement and evolve rules behavior without route rewrites.
 - Support and QA can map rule outcomes to API responses and test scenarios.
 
+## Phase 11 - Rules Service POC Implementation
+
+Goal: implement a thin, deterministic rules service for demo use that evaluates config/rules.yaml in core checkout flows.
+
+Tasks:
+
+1. Implement src/services/rules.service.ts with a focused operator/action subset for POC:
+   - operators: eq, in, regex, exists, gte
+   - actions: block, warn
+   - optional: set_value for one controlled path only
+2. Load and validate rules.yaml at startup or service initialization with deterministic fallback behavior.
+3. Integrate rules evaluation into:
+   - PATCH step updates
+   - POST validate
+   - POST submit (final guardrail before adapter orchestration)
+4. Enforce deterministic evaluation order:
+   - stepDependencies
+   - fieldRules
+   - eligibilityRules
+   - dynamicRules (priority desc, then ruleId)
+5. Map outcomes to canonical API model with consistent codes, statuses, and detail shape.
+6. Add focused unit and integration tests for rule outcomes and mapping behavior.
+7. Update Postman/docs where user-visible behavior changes.
+
+Done when:
+
+- Core rules service behavior is executable and deterministic for POC demos.
+- PATCH/validate/submit apply policy checks with stable error mapping.
+- Rules tests pass and demonstrate at least one policy block and one warning path.
+
 ## Mock Scenario Strategy
 
 Use explicit scenario flags, not randomness.
@@ -762,6 +792,26 @@ Deliverables:
 - Phase 10 completion checklist
 - Validation checklist covering implemented files vs planned files, documented rules behavior vs planned rules behavior, and any gaps or deviations
 
+#### Prompt for Phase 11 - Rules Service POC Implementation
+
+Implement Phase 11 - Rules Service POC Implementation from the Implementation Phases section in checkout-journey-execution-plan.md.
+Requirements:
+- Treat checkout-journey-execution-plan.md as the source of truth; if generated code conflicts with it, follow the plan and call out any required deviation explicitly.
+- Validate output against Project Structure, Proposed API Contract, and Success Criteria sections before finishing.
+- Implement src/services/rules.service.ts for a focused POC scope.
+- Support operators eq, in, regex, exists, gte and actions block, warn (optional set_value for one controlled path).
+- Integrate rules checks into PATCH step updates, POST validate, and POST submit.
+- Keep deterministic evaluation order and stable mapping to canonical error model.
+- Add or update tests for rule evaluation and API-visible outcomes.
+- Update docs/postman where behavior changes.
+- Do not implement work outside Phase 11.
+- Run build and tests and summarize results.
+Deliverables:
+- Files created and updated
+- Assumptions made
+- Phase 11 completion checklist
+- Validation checklist covering implemented files vs planned files, implemented rules behavior vs planned rules behavior, and any gaps or deviations
+
 ## Execution Order and Parallel Work
 
 Sequential dependencies:
@@ -775,6 +825,7 @@ Sequential dependencies:
 7. Phase 8 starts after core behavior and tests are stable.
 8. Phase 9 starts after documentation baseline is in place.
 9. Phase 10 starts after customer journey requirements documentation is in place.
+10. Phase 11 starts after rules integration documentation is in place.
 
 Parallel candidates (if multiple engineers):
 

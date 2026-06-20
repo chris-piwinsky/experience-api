@@ -10,21 +10,21 @@ This document explains how config/rules.yaml is intended to be integrated into c
   - POST /v1/checkout/journeys/{journeyId}/validate
   - POST /v1/checkout/journeys/{journeyId}/submit
 
-This guide distinguishes current implementation behavior from planned rules-service behavior.
+This guide reflects the current Phase 11 POC implementation and calls out the remaining gaps separately.
 
 ## Current status vs planned status
 
 Current state:
 
-- rules.yaml exists and documents policy structure.
-- Core step dependency enforcement is implemented in checkout service.
-- Full runtime rules service integration is not yet implemented.
+- Rules service loads rules.yaml during service construction.
+- PATCH, validate, and submit evaluate field rules, eligibility rules, step dependencies, and dynamic rules in deterministic order.
+- API error mapping includes rule-aware detail fields through the error details array.
 
-Planned state:
+Remaining gaps:
 
-- Rules service loads and validates rules.yaml at startup.
-- PATCH, validate, and submit all evaluate policy rules deterministically.
-- API error mapping includes rule-aware detail fields such as ruleId and fieldPath.
+- Rules configuration uses a lightweight runtime validator rather than a full schema validator.
+- Only the focused POC operator subset is executable: eq, in, regex, exists, gte.
+- set_value is intentionally constrained to a single controlled target path.
 
 ## rules.yaml structure
 
