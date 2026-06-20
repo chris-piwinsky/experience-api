@@ -19,6 +19,8 @@ Start here, then use the guides in docs/:
 - [docs/testing.md](docs/testing.md): test suites, commands, and degraded scenario guidance.
 - [docs/postman-guide.md](docs/postman-guide.md): Postman setup, payloads, and end-to-end scenario matrix.
 - [docs/api-reference.md](docs/api-reference.md): endpoint and envelope summary aligned to OpenAPI.
+- [docs/customer-journey-requirements.md](docs/customer-journey-requirements.md): customer journey meaning, requirements, and acceptance boundaries.
+- [docs/rules-integration-and-expansion.md](docs/rules-integration-and-expansion.md): rules.yaml integration, evaluation behavior, and dynamic expansion guidance.
 - [docs/architecture.md](docs/architecture.md): component boundaries and request lifecycle.
 - [docs/mock-scenarios.md](docs/mock-scenarios.md): deterministic mock settings and expected outcomes.
 

@@ -123,6 +123,8 @@ Create this structure:
 - docs/api-reference.md
 - docs/architecture.md
 - docs/mock-scenarios.md
+- docs/customer-journey-requirements.md
+- docs/rules-integration-and-expansion.md
 - .env.example
 - README.md
 
@@ -277,6 +279,42 @@ Done when:
 
 - Support engineers can follow route, service, adapter, and middleware logic without guesswork.
 - Comments are concise, accurate, and limited to high-value sections.
+
+## Phase 9 - Customer Journey Requirements Documentation
+
+Goal: provide a clear business and product requirements narrative for the checkout journey, including intended behavior, constraints, and acceptance boundaries.
+
+Tasks:
+
+1. Create docs/customer-journey-requirements.md.
+2. Document journey purpose, actors, and expected user outcomes for each checkout step.
+3. Capture functional requirements, non-functional requirements, and explicit out-of-scope items.
+4. Define state transitions and failure behavior expectations aligned with API and scenario strategy.
+5. Map requirements to endpoints, test scenarios, and support diagnostics expectations.
+6. Link the new document from docs/overview.md and README.md.
+
+Done when:
+
+- Product and support teams can understand what the checkout journey means and what success or failure looks like.
+- Requirements are traceable to API behavior and deterministic scenario tests.
+
+## Phase 10 - Rules Integration and Dynamic Expansion Documentation
+
+Goal: provide implementation-level guidance for how config/rules.yaml is integrated, evaluated, and safely expanded over time.
+
+Tasks:
+
+1. Create docs/rules-integration-and-expansion.md.
+2. Document rules.yaml sections and expected runtime interpretation.
+3. Describe integration points for PATCH, validate, and submit flows.
+4. Define evaluation order, conflict resolution, and error mapping expectations.
+5. Provide dynamic expansion guidance with examples and required tests.
+6. Link the new document from docs/overview.md and README.md.
+
+Done when:
+
+- Engineers can implement and evolve rules behavior without route rewrites.
+- Support and QA can map rule outcomes to API responses and test scenarios.
 
 ## Mock Scenario Strategy
 
@@ -687,6 +725,43 @@ Deliverables:
 - Phase 8 completion checklist
 - Validation checklist covering implemented files vs planned files, commented modules vs planned modules, and any gaps or deviations
 
+#### Prompt for Phase 9 - Customer Journey Requirements Documentation
+
+Implement Phase 9 - Customer Journey Requirements Documentation from the Implementation Phases section in checkout-journey-execution-plan.md.
+Requirements:
+- Treat checkout-journey-execution-plan.md as the source of truth; if generated content conflicts with it, follow the plan and call out any required deviation explicitly.
+- Validate output against Project Structure, Proposed API Contract, and Success Criteria sections before finishing.
+- Create docs/customer-journey-requirements.md to explain the meaning of the customer journey and requirements around it.
+- Include business goals, actor expectations, checkout step intent, and acceptance criteria.
+- Include functional and non-functional requirements, deterministic scenario expectations, and clear out-of-scope boundaries.
+- Map requirements to API endpoints and test/postman scenarios where applicable.
+- Do not implement work outside Phase 9.
+- Summarize what was added and any requirement gaps that remain.
+Deliverables:
+- Files created and updated
+- Assumptions made
+- Phase 9 completion checklist
+- Validation checklist covering implemented files vs planned files, documented requirements vs planned requirements, and any gaps or deviations
+
+#### Prompt for Phase 10 - Rules Integration and Dynamic Expansion Documentation
+
+Implement Phase 10 - Rules Integration and Dynamic Expansion Documentation from the Implementation Phases section in checkout-journey-execution-plan.md.
+Requirements:
+- Treat checkout-journey-execution-plan.md as the source of truth; if generated content conflicts with it, follow the plan and call out any required deviation explicitly.
+- Validate output against Project Structure, Proposed API Contract, and Success Criteria sections before finishing.
+- Create docs/rules-integration-and-expansion.md.
+- Explain how config/rules.yaml is integrated and used in PATCH, validate, and submit flows.
+- Document evaluation order, priority handling, conflict behavior, and error mapping conventions.
+- Include guidance for dynamically expanding rules safely, including examples and required tests.
+- Keep the document explicit about current implementation status vs planned rules service behavior.
+- Do not implement work outside Phase 10.
+- Summarize what was added and remaining rules integration gaps.
+Deliverables:
+- Files created and updated
+- Assumptions made
+- Phase 10 completion checklist
+- Validation checklist covering implemented files vs planned files, documented rules behavior vs planned rules behavior, and any gaps or deviations
+
 ## Execution Order and Parallel Work
 
 Sequential dependencies:
@@ -698,6 +773,8 @@ Sequential dependencies:
 5. Phase 6 starts once core route logic is available.
 6. Phase 7 starts once tests are stable.
 7. Phase 8 starts after core behavior and tests are stable.
+8. Phase 9 starts after documentation baseline is in place.
+9. Phase 10 starts after customer journey requirements documentation is in place.
 
 Parallel candidates (if multiple engineers):
 
