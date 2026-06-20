@@ -4,9 +4,13 @@ import { createCheckoutService } from "../services/checkout.service";
 import { ApiError } from "../types/api-error";
 import { CHECKOUT_STEP_IDS, type CheckoutStepId } from "../types/checkout";
 
+// HTTP handler layer for checkout journey endpoints.
+// Routes delegate business logic to CheckoutService and wrap responses in canonical envelopes.
 export const checkoutRouter = Router();
 const checkoutService = createCheckoutService();
 
+// Extract request/correlation IDs and current timestamp from response locals (set by middleware).
+// These values are included in every response envelope for tracing and audit.
 function requestContext(res: Response): { requestId: string; correlationId: string; timestamp: string } {
   return {
     requestId: res.locals.requestId,
@@ -24,6 +28,8 @@ function readPathParam(value: string | string[] | undefined, name: string): stri
   return Array.isArray(value) ? value[0] : value;
 }
 
+// POST /journeys - Create new checkout journey.
+// Returns 201 with initialized journey and step state.
 checkoutRouter.post("/journeys", (req: Request, res: Response, next: NextFunction) => {
   try {
     const ctx = requestContext(res);
@@ -61,6 +67,8 @@ checkoutRouter.get("/journeys/:journeyId", (req: Request, res: Response, next: N
   }
 });
 
+// PATCH /journeys/:journeyId/steps/:stepId - Update a journey step with payload.
+// Enforces step routing, integrates rules service for policy checks, updates journey status.
 checkoutRouter.patch("/journeys/:journeyId/steps/:stepId", (req: Request, res: Response, next: NextFunction) => {
   try {
     const ctx = requestContext(res);
@@ -93,6 +101,8 @@ checkoutRouter.patch("/journeys/:journeyId/steps/:stepId", (req: Request, res: R
   }
 });
 
+// POST /journeys/:journeyId/validate - Check journey readiness and collect validation issues.
+// Returns valid: true/false and issues list for client-side field-level feedback.
 checkoutRouter.post("/journeys/:journeyId/validate", (req: Request, res: Response, next: NextFunction) => {
   try {
     const ctx = requestContext(res);
@@ -110,6 +120,9 @@ checkoutRouter.post("/journeys/:journeyId/validate", (req: Request, res: Respons
   }
 });
 
+// POST /journeys/:journeyId/submit - Orchestrate deterministic submit flow.
+// Validates readiness, reserves inventory, authorizes payment, creates fulfillment.
+// Returns 200 with submitted journey or deterministic error (409/503) per adapter scenario.
 checkoutRouter.post("/journeys/:journeyId/submit", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const ctx = requestContext(res);

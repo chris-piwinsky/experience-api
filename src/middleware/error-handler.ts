@@ -13,7 +13,8 @@ export function notFoundHandler(req: Request, res: Response): void {
 }
 
 export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction): void {
-  // Preserve typed domain errors so clients receive stable error codes and optional detail arrays.
+  // Preserve typed domain errors (ApiError) so clients receive stable error codes and optional detail arrays.
+  // Domain errors include validation failures (400), deterministic adapter failures (409/503), and not-found (404).
   if (err instanceof ApiError) {
     res.status(err.status).json({
       code: err.code,
@@ -26,7 +27,8 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     return;
   }
 
-  // Fallback protects the API contract when unexpected exceptions occur.
+  // Fallback: protects the API contract by converting unexpected exceptions to 500 with stable envelope.
+  // Helps support engineers identify code bugs vs expected business logic failures.
   res.status(500).json({
     code: "INTERNAL_ERROR",
     message: "Unexpected error while handling checkout request",

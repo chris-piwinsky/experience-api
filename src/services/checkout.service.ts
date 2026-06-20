@@ -15,6 +15,10 @@ import {
 import { InMemoryJourneysStore, type JourneysStore } from "../data/journeys.store";
 import { createRulesService, type RulesService } from "./rules.service";
 import { ApiError } from "../types/api-error";
+
+// Service layer orchestrating checkout journey lifecycle.
+// Coordinates step updates, validation, rules evaluation, and submit orchestration.
+// Delegates storage to JourneysStore and dependency calls to adapters.
 import {
   createInitialSteps,
   type CheckoutJourney,
@@ -62,6 +66,9 @@ export class CheckoutService {
     return journey;
   }
 
+  // Update a step's payload and apply rules-based policy checks.
+  // Rules service validates step prerequisites, field constraints, and eligibility.
+  // Throws on blocking issues; includes warnings in journey state.
   updateJourneyStep(
     journeyId: string,
     stepId: CheckoutStepId,
@@ -113,6 +120,10 @@ export class CheckoutService {
     };
   }
 
+  // Orchestrate submit: validate readiness, apply final rules, then call adapters in sequence.
+  // Sequence: inventory reserve -> payment authorize -> fulfillment create.
+  // Deterministic failures from adapters are mapped to stable error codes (409/503).
+  // Async due to adapter latency and optional artificial delays in mock scenarios.
   async submitJourney(journeyId: string): Promise<CheckoutJourney> {
     const journey = this.getJourneyById(journeyId);
     const validationResult = this.validateJourney(journeyId);

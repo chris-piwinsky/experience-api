@@ -7,6 +7,12 @@ import {
   type MockScenarioConfig,
 } from "./mock-scenarios";
 
+// Mock inventory adapter with deterministic scenario behavior.
+// Scenarios are controlled via MOCK_INVENTORY_SCENARIO env var.
+// success: reservation succeeds with deterministic ID
+// out_of_stock: reservation fails without throwing
+// timeout: simulates service outage, throws 503 INVENTORY_UNAVAILABLE
+
 export interface InventoryReservationInput {
   journeyId: string;
   items: FixtureOrderItem[];

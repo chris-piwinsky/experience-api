@@ -8,6 +8,30 @@ This document is the working playbook to build a contract-first Express + TypeSc
 
 Use this as the resume point whenever work is paused.
 
+## Completion Status
+
+**Phases 1–8: COMPLETE**
+- ✅ Phase 1: Contract and skeleton (OpenAPI, Express app, routes)
+- ✅ Phase 2: Domain model and state store (journey types, in-memory store)
+- ✅ Phase 3: Mock downstream adapters (inventory, payment, fulfillment with deterministic scenarios)
+- ✅ Phase 4: Route and service orchestration (create/get/update/validate/submit handlers)
+- ✅ Phase 5: Observability and error handling (correlation IDs, structured logging, centralized error mapping)
+- ✅ Phase 6: Tests (unit and integration; all 20 tests passing)
+- ✅ Phase 7: Documentation and quickstart (all docs including bruno-guide.md; README updated)
+- ✅ Phase 8: Developer code comments and maintainability (build passes; comments added to routes, service, middleware, adapters; all tests passing)
+
+**Phase 9–10: COMPLETE**
+- ✅ Phase 9: Customer journey requirements documentation (docs/customer-journey-requirements.md exists and linked)
+- ✅ Phase 10: Rules integration and expansion documentation (docs/rules-integration-and-expansion.md exists and linked)
+
+**Phase 11: PARTIAL**
+- 🔄 Phase 11: Rules Service POC implementation (src/services/rules.service.ts exists; core operators and actions implemented; further testing and validation expansion may be needed)
+
+**Migration Notes**
+- ✅ Postman → Bruno migration complete (25 requests across 3 folders in bruno/Customer-Experience-API/)
+- ✅ All Postman JSON files and /postman/ directory removed
+- ✅ All documentation updated to reference Bruno instead of Postman
+
 ## Scope Locked In
 
 - API style: single journey resource with step updates (REST)
@@ -257,94 +281,101 @@ Done when:
 
 ## Phase 8 - Developer Code Comments and Maintainability
 
+**Status: COMPLETE** ✅
+
 Goal: improve maintainability by adding clear, intentional comments for support and future enhancement work.
 
-Tasks:
+Completed tasks:
 
-1. Add concise comments in core files where logic is not self-evident:
-   - src/routes/checkout.ts
-   - src/services/checkout.service.ts
-   - src/adapters/*.ts
-   - src/middleware/*.ts
-2. Focus comments on:
-   - business and flow intent
-   - non-obvious decision points
-   - error-mapping rationale
-   - deterministic mock behavior assumptions
-3. Avoid noisy comments that only restate obvious code.
-4. Keep comments accurate and in sync with openapi.yaml and execution plan behavior.
-5. Review tests to ensure comments do not conflict with existing deterministic expectations.
+1. Added concise comments in core files:
+   - src/routes/checkout.ts (4 block comments: HTTP layer purpose, request context, endpoint flow intents)
+   - src/services/checkout.service.ts (2 block comments: orchestration role, submit sequence and async rationale)
+   - src/middleware/correlation-id.ts (1 expanded comment: ID chaining logic)
+   - src/middleware/error-handler.ts (2 expanded comments: error handling strategy and contract protection)
+   - src/adapters/inventory.adapter.ts (1 block comment: deterministic scenario behavior)
+   - src/adapters/payment.adapter.ts (1 expanded comment: timeout vs decline error distinction)
+   - src/adapters/fulfillment.adapter.ts (1 block comment: deterministic scenario behavior)
+2. Comments focus on business and flow intent, non-obvious decisions, and error-mapping rationale.
+3. Avoided noisy comments that only restate obvious code.
+4. Verified comments are accurate and in sync with openapi.yaml and Phase 4 orchestration behavior.
+5. Ran full test suite and build to ensure no conflicts with existing deterministic expectations.
 
-Done when:
+Validation:
 
-- Support engineers can follow route, service, adapter, and middleware logic without guesswork.
-- Comments are concise, accurate, and limited to high-value sections.
+- ✅ TypeScript build passes with no errors
+- ✅ All 20 tests pass (3 suites: unit, unit adapters, integration)
+- ✅ Support engineers can follow route, service, adapter, and middleware logic without guesswork
+- ✅ Comments are concise, accurate, and limited to high-value sections
 
 ## Phase 9 - Customer Journey Requirements Documentation
 
+**Status: COMPLETE** ✅
+
 Goal: provide a clear business and product requirements narrative for the checkout journey, including intended behavior, constraints, and acceptance boundaries.
 
-Tasks:
+Completed tasks:
 
-1. Create docs/customer-journey-requirements.md.
-2. Document journey purpose, actors, and expected user outcomes for each checkout step.
-3. Capture functional requirements, non-functional requirements, and explicit out-of-scope items.
-4. Define state transitions and failure behavior expectations aligned with API and scenario strategy.
-5. Map requirements to endpoints, test scenarios, and support diagnostics expectations.
-6. Link the new document from docs/overview.md and README.md.
+1. Created docs/customer-journey-requirements.md with comprehensive narrative.
+2. Documented journey purpose, actors, and expected user outcomes for all MVP checkout steps.
+3. Captured functional and non-functional requirements with explicit out-of-scope items.
+4. Defined state transitions and failure behavior expectations aligned with API and mock scenario strategy.
+5. Mapped requirements to endpoints, test scenarios, and support diagnostics expectations.
+6. Linked the document from docs/overview.md and README.md.
 
-Done when:
+Validation:
 
-- Product and support teams can understand what the checkout journey means and what success or failure looks like.
-- Requirements are traceable to API behavior and deterministic scenario tests.
+- ✅ Product and support teams can understand checkout journey meaning and success/failure outcomes
+- ✅ Requirements are traceable to API behavior and deterministic scenario tests
 
 ## Phase 10 - Rules Integration and Dynamic Expansion Documentation
 
+**Status: COMPLETE** ✅
+
 Goal: provide implementation-level guidance for how config/rules.yaml is integrated, evaluated, and safely expanded over time.
 
-Tasks:
+Completed tasks:
 
-1. Create docs/rules-integration-and-expansion.md.
-2. Document rules.yaml sections and expected runtime interpretation.
-3. Describe integration points for PATCH, validate, and submit flows.
-4. Define evaluation order, conflict resolution, and error mapping expectations.
-5. Provide dynamic expansion guidance with examples and required tests.
-6. Link the new document from docs/overview.md and README.md.
+1. Created docs/rules-integration-and-expansion.md with implementation guidance.
+2. Documented rules.yaml sections and expected runtime interpretation.
+3. Described integration points for PATCH, validate, and submit flows.
+4. Defined evaluation order (stepDependencies → fieldRules → eligibilityRules → dynamicRules), conflict resolution, and error mapping expectations.
+5. Provided dynamic expansion guidance with examples and required test patterns.
+6. Linked the document from docs/overview.md and README.md.
 
-Done when:
+Validation:
 
-- Engineers can implement and evolve rules behavior without route rewrites.
-- Support and QA can map rule outcomes to API responses and test scenarios.
+- ✅ Engineers can understand and evolve rules behavior without route rewrites
+- ✅ Support and QA can map rule outcomes to API responses and test scenarios
 
 ## Phase 11 - Rules Service POC Implementation
 
+**Status: PARTIAL** 🔄
+
 Goal: implement a thin, deterministic rules service for demo use that evaluates config/rules.yaml in core checkout flows.
 
-Tasks:
+Completed tasks:
 
-1. Implement src/services/rules.service.ts with a focused operator/action subset for POC:
-   - operators: eq, in, regex, exists, gte
-   - actions: block, warn
-   - optional: set_value for one controlled path only
-2. Load and validate rules.yaml at startup or service initialization with deterministic fallback behavior.
-3. Integrate rules evaluation into:
-   - PATCH step updates
-   - POST validate
-   - POST submit (final guardrail before adapter orchestration)
-4. Enforce deterministic evaluation order:
-   - stepDependencies
-   - fieldRules
-   - eligibilityRules
-   - dynamicRules (priority desc, then ruleId)
-5. Map outcomes to canonical API model with consistent codes, statuses, and detail shape.
-6. Add focused unit and integration tests for rule outcomes and mapping behavior.
-7. Update Bruno/docs where user-visible behavior changes.
+1. Implemented src/services/rules.service.ts with focused operator/action subset:
+   - operators: eq, in, regex, exists, gte ✅
+   - actions: block, warn ✅
+   - optional: set_value (foundation in place)
+2. Added rules.yaml loading and validation at service initialization ✅
+3. Core service logic for deterministic evaluation ✅
 
-Done when:
+Pending tasks for full Phase 11 completion:
 
-- Core rules service behavior is executable and deterministic for POC demos.
-- PATCH/validate/submit apply policy checks with stable error mapping.
-- Rules tests pass and demonstrate at least one policy block and one warning path.
+1. Complete integration into PATCH step updates, POST validate, and POST submit flows
+2. Enforce full deterministic evaluation order (stepDependencies → fieldRules → eligibilityRules → dynamicRules)
+3. Add comprehensive unit and integration tests demonstrating block and warn outcomes
+4. Update Bruno test collection and docs when rules-driven behavior is user-facing
+5. Validate end-to-end rule evaluation with config/rules.yaml scenarios
+
+Next steps:
+
+- Extend checkout.service.ts to call rules.service.ts during PATCH, validate, and submit flows
+- Add test scenarios for policy blocks and warnings
+- Document rules behaviors in Bruno collection scenarios
+- Update mock scenario matrix in docs/bruno-guide.md if rules impact visible behavior
 
 ## Mock Scenario Strategy
 

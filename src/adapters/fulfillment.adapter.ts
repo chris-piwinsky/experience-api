@@ -7,6 +7,11 @@ import {
   type MockScenarioConfig,
 } from "./mock-scenarios";
 
+// Mock fulfillment adapter with deterministic scenario behavior.
+// Scenarios are controlled via MOCK_FULFILLMENT_SCENARIO env var.
+// success: shipment accepted with deterministic ID
+// timeout: simulates service outage, throws 503 FULFILLMENT_TIMEOUT
+
 export interface FulfillmentCreateInput {
   journeyId: string;
   customerId: string;

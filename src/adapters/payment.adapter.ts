@@ -37,7 +37,8 @@ export class MockPaymentAdapter implements PaymentAdapter {
     scenario: PaymentScenario,
     input: PaymentAuthorizationInput,
   ): PaymentAuthorizationResult {
-    // Timeout is mapped to a dependency error code so callers can distinguish declines vs outages.
+    // Timeout is mapped to 503 DEPENDENCY_FAILURE (not 409) to help callers distinguish
+    // transient outages from business logic declines. Submit flow retries outages at orchestration level.
     if (scenario === "timeout") {
       throw new ApiError("DEPENDENCY_FAILURE", "Payment service timeout in mock scenario", 503);
     }
