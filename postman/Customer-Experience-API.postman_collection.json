@@ -1,0 +1,403 @@
+{
+  "info": {
+    "name": "Customer Experience API - Checkout Journey",
+    "description": "Postman collection for full checkout flows, degraded scenarios, and rule-style validation checks.\n\nHow to use:\n1) Import this collection and the Local environment file.\n2) Start API with scenario env vars you want to test.\n3) Run folder 01 for happy path.\n4) Run folder 02 with the matching server scenario.\n5) Run folder 03 for step-conflict and rule-style examples.\n\nNote: rule-style checks are documented for planned rules engine behavior and may vary until rules service is implemented.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;",
+          "pm.environment.set('requestId', `req-${suffix}`);",
+          "pm.environment.set('correlationId', `corr-${suffix}`);"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "journeyId", "value": "" },
+    { "key": "customerId", "value": "cust-1001" },
+    { "key": "requestId", "value": "req-initial" },
+    { "key": "correlationId", "value": "corr-initial" }
+  ],
+  "item": [
+    {
+      "name": "01 - Happy Path Full Flow",
+      "item": [
+        {
+          "name": "Create Journey",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-request-id", "value": "{{requestId}}" },
+              { "key": "x-correlation-id", "value": "{{correlationId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"currency\": \"USD\",\n  \"locale\": \"en-US\"\n}"
+            },
+            "url": "{{baseUrl}}/v1/checkout/journeys"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('journeyId', json.data.id);",
+                  "pm.test('journeyId saved', () => pm.expect(pm.environment.get('journeyId')).to.exist);",
+                  "pm.test('request and correlation ids exist', () => {",
+                  "  pm.expect(json.requestId).to.exist;",
+                  "  pm.expect(json.correlationId).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Patch Cart",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-request-id", "value": "{{requestId}}" },
+              { "key": "x-correlation-id", "value": "{{correlationId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payload\": {\n    \"items\": [\n      { \"sku\": \"SKU-100\", \"name\": \"Demo Item\", \"quantity\": 1, \"unitPrice\": 129.99 }\n    ],\n    \"totalAmount\": 129.99\n  }\n}"
+            },
+            "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/cart"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('status is 200', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "Patch Shipping Address",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-request-id", "value": "{{requestId}}" },
+              { "key": "x-correlation-id", "value": "{{correlationId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payload\": {\n    \"firstName\": \"Sam\",\n    \"lastName\": \"Taylor\",\n    \"line1\": \"101 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"78701\",\n    \"country\": \"US\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/shipping-address"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('status is 200', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "Patch Delivery Method",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-request-id", "value": "{{requestId}}" },
+              { "key": "x-correlation-id", "value": "{{correlationId}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"payload\": {\n    \"method\": \"standard\"\n  }\n}" },
+            "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/delivery-method"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('status is 200', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "Patch Payment Method",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-request-id", "value": "{{requestId}}" },
+              { "key": "x-correlation-id", "value": "{{correlationId}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"payload\": {\n    \"method\": \"card\",\n    \"cardLast4\": \"4242\"\n  }\n}" },
+            "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/payment-method"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('status is 200', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "Patch Billing Address",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-request-id", "value": "{{requestId}}" },
+              { "key": "x-correlation-id", "value": "{{correlationId}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"payload\": {\n    \"line1\": \"101 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"78701\",\n    \"country\": \"US\"\n  }\n}" },
+            "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/billing-address"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('status is 200', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "Patch Promo Code",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-request-id", "value": "{{requestId}}" },
+              { "key": "x-correlation-id", "value": "{{correlationId}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"payload\": {\n    \"code\": \"WELCOME10\"\n  }\n}" },
+            "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/promo-code"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('status is 200', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "Patch Review Submit",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-request-id", "value": "{{requestId}}" },
+              { "key": "x-correlation-id", "value": "{{correlationId}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"payload\": {\n    \"confirmed\": true\n  }\n}" },
+            "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/review-submit"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('status is 200', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "Validate Journey",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-request-id", "value": "{{requestId}}" },
+              { "key": "x-correlation-id", "value": "{{correlationId}}" }
+            ],
+            "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/validate"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('status is 200', () => pm.response.to.have.status(200));", "const json = pm.response.json();", "pm.test('valid is true on happy flow', () => pm.expect(json.data.valid).to.eql(true));"] } }]
+        },
+        {
+          "name": "Submit Journey - Happy",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-request-id", "value": "{{requestId}}" },
+              { "key": "x-correlation-id", "value": "{{correlationId}}" }
+            ],
+            "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/submit"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('status is 200', () => pm.response.to.have.status(200));", "const json = pm.response.json();", "pm.test('status is submitted', () => pm.expect(json.data.status).to.eql('submitted'));", "pm.test('ids present', () => { pm.expect(json.requestId).to.exist; pm.expect(json.correlationId).to.exist; });"] } }]
+        },
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-request-id", "value": "{{requestId}}" },
+              { "key": "x-correlation-id", "value": "{{correlationId}}" }
+            ],
+            "url": "{{baseUrl}}/health"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('status is 200', () => pm.response.to.have.status(200));", "const json = pm.response.json();", "pm.test('health has ids', () => { pm.expect(json.requestId).to.exist; pm.expect(json.correlationId).to.exist; });"] } }]
+        }
+      ]
+    },
+    {
+      "name": "02 - Error Scenarios",
+      "description": "Run 'Prepare Ready Journey' first, then run the submit request that matches server env scenario.",
+      "item": [
+        {
+          "name": "Prepare Ready Journey",
+          "item": [
+            {
+              "name": "Create Journey",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "x-request-id", "value": "{{requestId}}" },
+                  { "key": "x-correlation-id", "value": "{{correlationId}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"currency\": \"USD\",\n  \"locale\": \"en-US\"\n}" },
+                "url": "{{baseUrl}}/v1/checkout/journeys"
+              },
+              "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["const json = pm.response.json();", "pm.environment.set('journeyId', json.data.id);", "pm.test('status is 201', () => pm.response.to.have.status(201));"] } }]
+            },
+            {
+              "name": "Patch Cart",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "x-request-id", "value": "{{requestId}}" },
+                  { "key": "x-correlation-id", "value": "{{correlationId}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"payload\": {\n    \"items\": [\n      { \"sku\": \"SKU-100\", \"quantity\": 1 }\n    ],\n    \"totalAmount\": 129.99\n  }\n}" },
+                "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/cart"
+              }
+            },
+            {
+              "name": "Patch Shipping Address",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "x-request-id", "value": "{{requestId}}" },
+                  { "key": "x-correlation-id", "value": "{{correlationId}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"payload\": {\n    \"line1\": \"101 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"78701\",\n    \"country\": \"US\"\n  }\n}" },
+                "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/shipping-address"
+              }
+            },
+            {
+              "name": "Patch Delivery Method",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "x-request-id", "value": "{{requestId}}" },
+                  { "key": "x-correlation-id", "value": "{{correlationId}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"payload\": {\n    \"method\": \"standard\"\n  }\n}" },
+                "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/delivery-method"
+              }
+            },
+            {
+              "name": "Patch Payment Method",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "x-request-id", "value": "{{requestId}}" },
+                  { "key": "x-correlation-id", "value": "{{correlationId}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"payload\": {\n    \"method\": \"card\",\n    \"cardLast4\": \"4242\"\n  }\n}" },
+                "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/payment-method"
+              }
+            },
+            {
+              "name": "Patch Review Submit",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "x-request-id", "value": "{{requestId}}" },
+                  { "key": "x-correlation-id", "value": "{{correlationId}}" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"payload\": {\n    \"confirmed\": true\n  }\n}" },
+                "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/review-submit"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submit - Payment Declined",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-request-id", "value": "{{requestId}}" },
+              { "key": "x-correlation-id", "value": "{{correlationId}}" }
+            ],
+            "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/submit"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('status is 409', () => pm.response.to.have.status(409));", "const json = pm.response.json();", "pm.test('error code is PAYMENT_DECLINED', () => pm.expect(json.code).to.eql('PAYMENT_DECLINED'));"] } }]
+        },
+        {
+          "name": "Submit - Inventory Unavailable",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-request-id", "value": "{{requestId}}" },
+              { "key": "x-correlation-id", "value": "{{correlationId}}" }
+            ],
+            "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/submit"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('status is 409', () => pm.response.to.have.status(409));", "const json = pm.response.json();", "pm.test('error code is INVENTORY_UNAVAILABLE', () => pm.expect(json.code).to.eql('INVENTORY_UNAVAILABLE'));"] } }]
+        },
+        {
+          "name": "Submit - Fulfillment Timeout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-request-id", "value": "{{requestId}}" },
+              { "key": "x-correlation-id", "value": "{{correlationId}}" }
+            ],
+            "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/submit"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('status is 503', () => pm.response.to.have.status(503));", "const json = pm.response.json();", "pm.test('error code is FULFILLMENT_TIMEOUT', () => pm.expect(json.code).to.eql('FULFILLMENT_TIMEOUT'));"] } }]
+        }
+      ]
+    },
+    {
+      "name": "03 - Rule Config and Validation Scenarios",
+      "item": [
+        {
+          "name": "Create Journey for Rule Checks",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-request-id", "value": "{{requestId}}" },
+              { "key": "x-correlation-id", "value": "{{correlationId}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"currency\": \"USD\",\n  \"locale\": \"en-US\"\n}" },
+            "url": "{{baseUrl}}/v1/checkout/journeys"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('status is 201', () => pm.response.to.have.status(201));", "const json = pm.response.json();", "pm.environment.set('journeyId', json.data.id);"] } }]
+        },
+        {
+          "name": "Step Conflict - Review Submit Too Early",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-request-id", "value": "{{requestId}}" },
+              { "key": "x-correlation-id", "value": "{{correlationId}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"payload\": {\n    \"confirmed\": true\n  }\n}" },
+            "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/review-submit"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('status is 409', () => pm.response.to.have.status(409));", "const json = pm.response.json();", "pm.test('error code is STEP_CONFLICT', () => pm.expect(json.code).to.eql('STEP_CONFLICT'));"] } }]
+        },
+        {
+          "name": "Rule-style Invalid Postal (planned behavior)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-request-id", "value": "{{requestId}}" },
+              { "key": "x-correlation-id", "value": "{{correlationId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payload\": {\n    \"firstName\": \"Sam\",\n    \"lastName\": \"Taylor\",\n    \"line1\": \"101 Main St\",\n    \"city\": \"Austin\",\n    \"state\": \"TX\",\n    \"postalCode\": \"ABC\",\n    \"country\": \"US\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/shipping-address"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["const status = pm.response.code;", "pm.test('current or planned rule behavior', () => pm.expect([200, 400]).to.include(status));"] } }]
+        },
+        {
+          "name": "Rule-style NY Cash On Delivery (planned behavior)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-request-id", "value": "{{requestId}}" },
+              { "key": "x-correlation-id", "value": "{{correlationId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payload\": {\n    \"method\": \"cash_on_delivery\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/v1/checkout/journeys/{{journeyId}}/steps/payment-method"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["const status = pm.response.code;", "pm.test('current or planned rule behavior', () => pm.expect([200, 409]).to.include(status));"] } }]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,448 @@
+openapi: 3.0.3
+info:
+  title: Customer Experience API - Checkout Journey
+  version: 1.0.0
+  description: |
+    Contract-first API for a checkout journey Experience API.
+    This spec is designed for frontend integration and Postman execution.
+servers:
+  - url: http://localhost:3000
+    description: Local development
+
+tags:
+  - name: CheckoutJourney
+    description: Checkout journey lifecycle endpoints
+  - name: Health
+    description: Service health endpoints
+
+paths:
+  /v1/checkout/journeys:
+    post:
+      tags: [CheckoutJourney]
+      summary: Create checkout journey
+      operationId: createCheckoutJourney
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateJourneyRequest'
+      responses:
+        '201':
+          description: Journey created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JourneyEnvelope'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/checkout/journeys/{journeyId}:
+    get:
+      tags: [CheckoutJourney]
+      summary: Get checkout journey by id
+      operationId: getCheckoutJourney
+      parameters:
+        - $ref: '#/components/parameters/JourneyId'
+      responses:
+        '200':
+          description: Journey state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JourneyEnvelope'
+        '404':
+          description: Journey not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/checkout/journeys/{journeyId}/steps/{stepId}:
+    patch:
+      tags: [CheckoutJourney]
+      summary: Update checkout journey step
+      operationId: updateCheckoutStep
+      parameters:
+        - $ref: '#/components/parameters/JourneyId'
+        - $ref: '#/components/parameters/StepId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StepUpdateRequest'
+      responses:
+        '200':
+          description: Journey updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JourneyEnvelope'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Journey not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Step conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/checkout/journeys/{journeyId}/validate:
+    post:
+      tags: [CheckoutJourney]
+      summary: Validate checkout journey before submit
+      operationId: validateCheckoutJourney
+      parameters:
+        - $ref: '#/components/parameters/JourneyId'
+      responses:
+        '200':
+          description: Validation results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationEnvelope'
+        '404':
+          description: Journey not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/checkout/journeys/{journeyId}/submit:
+    post:
+      tags: [CheckoutJourney]
+      summary: Submit checkout journey
+      operationId: submitCheckoutJourney
+      parameters:
+        - $ref: '#/components/parameters/JourneyId'
+      responses:
+        '200':
+          description: Journey submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JourneyEnvelope'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Journey not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Business rule conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Mock dependency failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /health:
+    get:
+      tags: [Health]
+      summary: Health status
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service health
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+components:
+  parameters:
+    JourneyId:
+      name: journeyId
+      in: path
+      required: true
+      schema:
+        type: string
+    StepId:
+      name: stepId
+      in: path
+      required: true
+      schema:
+        type: string
+        enum:
+          - cart
+          - shipping-address
+          - delivery-method
+          - payment-method
+          - billing-address
+          - promo-code
+          - review-submit
+
+  schemas:
+    JourneyEnvelope:
+      type: object
+      required:
+        - data
+        - requestId
+        - correlationId
+        - timestamp
+      properties:
+        data:
+          $ref: '#/components/schemas/CheckoutJourney'
+        requestId:
+          type: string
+        correlationId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    ValidationEnvelope:
+      type: object
+      required:
+        - data
+        - requestId
+        - correlationId
+        - timestamp
+      properties:
+        data:
+          $ref: '#/components/schemas/ValidationResult'
+        requestId:
+          type: string
+        correlationId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+        - requestId
+        - correlationId
+        - timestamp
+      properties:
+        code:
+          type: string
+          enum:
+            - VALIDATION_ERROR
+            - JOURNEY_NOT_FOUND
+            - STEP_CONFLICT
+            - CUSTOMER_NOT_ELIGIBLE
+            - RULES_CONFIG_ERROR
+            - PAYMENT_DECLINED
+            - INVENTORY_UNAVAILABLE
+            - FULFILLMENT_TIMEOUT
+            - DEPENDENCY_FAILURE
+            - INTERNAL_ERROR
+        message:
+          type: string
+        requestId:
+          type: string
+        correlationId:
+          type: string
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+        timestamp:
+          type: string
+          format: date-time
+
+    ErrorDetail:
+      type: object
+      properties:
+        field:
+          type: string
+        reason:
+          type: string
+
+    CreateJourneyRequest:
+      type: object
+      required:
+        - customerId
+        - currency
+      properties:
+        customerId:
+          type: string
+        currency:
+          type: string
+          example: USD
+        locale:
+          type: string
+          example: en-US
+
+    StepUpdateRequest:
+      type: object
+      required:
+        - payload
+      properties:
+        payload:
+          type: object
+          additionalProperties: true
+
+    CheckoutJourney:
+      type: object
+      required:
+        - id
+        - customerId
+        - status
+        - steps
+        - validationIssues
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+        customerId:
+          type: string
+        status:
+          type: string
+          enum:
+            - initiated
+            - in_progress
+            - ready_for_submit
+            - submitted
+            - failed
+        steps:
+          $ref: '#/components/schemas/CheckoutSteps'
+        validationIssues:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationIssue'
+        submittedOrderId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CheckoutSteps:
+      type: object
+      properties:
+        cart:
+          $ref: '#/components/schemas/StepState'
+        shipping-address:
+          $ref: '#/components/schemas/StepState'
+        delivery-method:
+          $ref: '#/components/schemas/StepState'
+        payment-method:
+          $ref: '#/components/schemas/StepState'
+        billing-address:
+          $ref: '#/components/schemas/StepState'
+        promo-code:
+          $ref: '#/components/schemas/StepState'
+        review-submit:
+          $ref: '#/components/schemas/StepState'
+
+    StepState:
+      type: object
+      required:
+        - completed
+      properties:
+        completed:
+          type: boolean
+        payload:
+          type: object
+          nullable: true
+          additionalProperties: true
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    ValidationResult:
+      type: object
+      required:
+        - valid
+        - issues
+      properties:
+        valid:
+          type: boolean
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationIssue'
+
+    ValidationIssue:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        ruleId:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+        stepId:
+          type: string
+        fieldPath:
+          type: string
+        severity:
+          type: string
+          enum: [error, warning]
+
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+        - checks
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        timestamp:
+          type: string
+          format: date-time
+        checks:
+          type: object
+          required:
+            - inventory
+            - payment
+            - fulfillment
+          properties:
+            inventory:
+              $ref: '#/components/schemas/DependencyCheck'
+            payment:
+              $ref: '#/components/schemas/DependencyCheck'
+            fulfillment:
+              $ref: '#/components/schemas/DependencyCheck'
+
+    DependencyCheck:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        scenario:
+          type: string

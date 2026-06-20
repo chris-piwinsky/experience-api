@@ -1,0 +1,289 @@
+policyVersion: "2026-06-19"
+defaults:
+  country: "US"
+
+runtime:
+  timezone: "America/New_York"
+  currency: "USD"
+
+featureFlags:
+  enableDynamicRules: true
+  enableWarnings: true
+  enableStepDependencies: true
+
+ruleEvaluation:
+  stopOnFirstBlock: true
+  defaultSeverity: "error"
+  unknownOperatorBehavior: "fail"
+
+fieldRules:
+  shipping-address:
+    required:
+      - firstName
+      - lastName
+      - line1
+      - city
+      - state
+      - postalCode
+      - country
+    formats:
+      state:
+        type: enum
+        allowed:
+          - AL
+          - AK
+          - AZ
+          - AR
+          - CA
+          - CO
+          - CT
+          - DE
+          - FL
+          - GA
+          - HI
+          - IA
+          - ID
+          - IL
+          - IN
+          - KS
+          - KY
+          - LA
+          - MA
+          - MD
+          - ME
+          - MI
+          - MN
+          - MO
+          - MS
+          - MT
+          - NC
+          - ND
+          - NE
+          - NH
+          - NJ
+          - NM
+          - NV
+          - NY
+          - OH
+          - OK
+          - OR
+          - PA
+          - RI
+          - SC
+          - SD
+          - TN
+          - TX
+          - UT
+          - VA
+          - VT
+          - WA
+          - WI
+          - WV
+          - WY
+      postalCode:
+        type: regex
+        pattern: "^[0-9]{5}(-[0-9]{4})?$"
+        message: "postalCode must be a valid US ZIP format"
+
+  payment-method:
+    required:
+      - method
+    formats:
+      method:
+        type: enum
+        allowed:
+          - card
+          - paypal
+          - cash_on_delivery
+
+eligibilityRules:
+  - ruleId: "ELIGIBILITY-STATE-COD-BLOCK"
+    enabled: true
+    priority: 10
+    severity: "error"
+    when:
+      stepId: "payment-method"
+      field: "method"
+      equals: "cash_on_delivery"
+      shippingStateIn:
+        - NY
+        - NJ
+    outcome:
+      code: "CUSTOMER_NOT_ELIGIBLE"
+      message: "Cash on delivery is not eligible for this shipping state"
+
+  - ruleId: "ELIGIBILITY-STATE-DELIVERY-RESTRICT"
+    enabled: true
+    priority: 10
+    severity: "error"
+    when:
+      stepId: "delivery-method"
+      field: "method"
+      notEquals: "standard"
+      shippingStateIn:
+        - AK
+        - HI
+    outcome:
+      code: "CUSTOMER_NOT_ELIGIBLE"
+      message: "Only standard delivery is eligible for this shipping state"
+
+stepDependencies:
+  - ruleId: "DEPENDENCY-REQUIRE-SHIPPING-BEFORE-DELIVERY"
+    enabled: true
+    priority: 5
+    when:
+      currentStepId: "delivery-method"
+      requiresCompletedSteps:
+        - "shipping-address"
+    outcome:
+      code: "STEP_CONFLICT"
+      message: "shipping-address must be completed before delivery-method"
+
+  - ruleId: "DEPENDENCY-REQUIRE-PAYMENT-BEFORE-REVIEW"
+    enabled: true
+    priority: 5
+    when:
+      currentStepId: "review-submit"
+      requiresCompletedSteps:
+        - "cart"
+        - "shipping-address"
+        - "delivery-method"
+        - "payment-method"
+    outcome:
+      code: "STEP_CONFLICT"
+      message: "All required checkout steps must be completed before review-submit"
+
+dynamicRules:
+  # Dynamic rule model for demos. Engine reads context paths and applies actions.
+  # Supported operators in this example: eq, ne, in, not_in, gte, lte, gt, lt, regex, exists
+  # contextPath examples: shipping.state, payment.method, cart.totalAmount, customer.segment, request.channel
+
+  - ruleId: "DYN-HIGH-VALUE-BLOCK-COD"
+    enabled: true
+    priority: 20
+    effective:
+      from: "2026-01-01T00:00:00Z"
+      to: null
+    appliesTo:
+      steps:
+        - "payment-method"
+      channels:
+        - "web"
+        - "mobile"
+      customerSegments:
+        - "standard"
+        - "vip"
+    conditions:
+      match: "all"
+      rules:
+        - contextPath: "payment.method"
+          operator: "eq"
+          value: "cash_on_delivery"
+        - contextPath: "cart.totalAmount"
+          operator: "gte"
+          value: 500
+    action:
+      type: "block"
+      code: "CUSTOMER_NOT_ELIGIBLE"
+      message: "Cash on delivery is unavailable for orders >= 500"
+
+  - ruleId: "DYN-REQUIRE-BILLING-FOR-CARD"
+    enabled: true
+    priority: 15
+    effective:
+      from: "2026-01-01T00:00:00Z"
+      to: null
+    appliesTo:
+      steps:
+        - "payment-method"
+    conditions:
+      match: "all"
+      rules:
+        - contextPath: "payment.method"
+          operator: "eq"
+          value: "card"
+        - contextPath: "billing.postalCode"
+          operator: "exists"
+          value: false
+    action:
+      type: "block"
+      code: "VALIDATION_ERROR"
+      message: "billing postalCode is required when payment method is card"
+      details:
+        fieldPath: "billing.postalCode"
+
+  - ruleId: "DYN-WARN-POBOX-EXPRESS"
+    enabled: true
+    priority: 12
+    effective:
+      from: "2026-01-01T00:00:00Z"
+      to: null
+    appliesTo:
+      steps:
+        - "delivery-method"
+    conditions:
+      match: "all"
+      rules:
+        - contextPath: "shipping.line1"
+          operator: "regex"
+          value: "(?i)p\\.?o\\.? box"
+        - contextPath: "delivery.method"
+          operator: "in"
+          value:
+            - "same_day"
+            - "overnight"
+    action:
+      type: "warn"
+      code: "VALIDATION_ERROR"
+      message: "PO Box addresses may not support expedited delivery"
+
+  - ruleId: "DYN-BLOCK-STATE-BY-MERCHANT-POLICY"
+    enabled: true
+    priority: 25
+    effective:
+      from: "2026-01-01T00:00:00Z"
+      to: null
+    appliesTo:
+      steps:
+        - "shipping-address"
+        - "submit"
+    conditions:
+      match: "all"
+      rules:
+        - contextPath: "shipping.state"
+          operator: "in"
+          value:
+            - "PR"
+            - "GU"
+            - "VI"
+    action:
+      type: "block"
+      code: "CUSTOMER_NOT_ELIGIBLE"
+      message: "This merchant does not currently ship to the selected region"
+
+  - ruleId: "DYN-VIP-FREE-EXPRESS"
+    enabled: true
+    priority: 8
+    effective:
+      from: "2026-01-01T00:00:00Z"
+      to: null
+    appliesTo:
+      steps:
+        - "delivery-method"
+      customerSegments:
+        - "vip"
+    conditions:
+      match: "all"
+      rules:
+        - contextPath: "delivery.method"
+          operator: "eq"
+          value: "express"
+        - contextPath: "cart.totalAmount"
+          operator: "gte"
+          value: 75
+    action:
+      type: "set_value"
+      targetPath: "delivery.fee"
+      value: 0
+      code: "PROMO_APPLIED"
+      message: "VIP free express shipping applied"
