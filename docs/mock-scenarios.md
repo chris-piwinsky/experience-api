@@ -16,9 +16,9 @@ flowchart TD
 ## Core toggles
 
 - MOCK_MODE=true
-- MOCK_INVENTORY_SCENARIO=success|out_of_stock|timeout
-- MOCK_PAYMENT_SCENARIO=success|declined|timeout
-- MOCK_FULFILLMENT_SCENARIO=success|timeout
+- MOCK_INVENTORY_SCENARIO = success | out_of_stock | timeout
+- MOCK_PAYMENT_SCENARIO = success | declined | timeout
+- MOCK_FULFILLMENT_SCENARIO = success | timeout
 
 ## Optional delay controls
 

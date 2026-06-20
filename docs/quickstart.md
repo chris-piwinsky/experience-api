@@ -17,6 +17,12 @@ npm install
 
 Copy .env.example values into your shell or .env workflow.
 
+```bash
+cp .env.example .env
+```
+
+Edit `.env` only if you want to change ports, delays, or mock scenarios.
+
 Required runtime variables:
 
 - PORT=3000
