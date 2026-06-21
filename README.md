@@ -75,3 +75,26 @@ Detailed testing instructions and scenario coverage are in [docs/testing.md](doc
 
 - MVP uses in-memory journey storage.
 - Downstreams are mocked only and controlled via env scenarios.
+
+## References
+
+The implementation approach and setup in this repo align with these primary sources:
+
+- Express documentation: https://expressjs.com/
+- Express error handling guide: https://expressjs.com/en/guide/error-handling.html
+- Node.js HTTP and runtime docs: https://nodejs.org/docs/latest/api/
+- TypeScript handbook: https://www.typescriptlang.org/docs/
+- OpenAPI Specification 3.0.3: https://spec.openapis.org/oas/v3.0.3
+- Jest documentation: https://jestjs.io/docs/getting-started
+- SuperTest repository and usage: https://github.com/ladjs/supertest
+- Bruno API Client docs: https://docs.usebruno.com/
+
+### Patterns and Approach References (Rules + Experience API)
+
+- Backends for Frontends (BFF) pattern: https://learn.microsoft.com/azure/architecture/patterns/backends-for-frontends
+- API Gateway pattern: https://microservices.io/patterns/apigateway.html
+- API Composition pattern: https://microservices.io/patterns/data/api-composition.html
+- Twelve-Factor App - Config: https://12factor.net/config
+- Open Policy Agent (policy-as-code concepts): https://www.openpolicyagent.org/docs/latest/
+- Martin Fowler - Feature Toggles: https://martinfowler.com/articles/feature-toggles.html
+
