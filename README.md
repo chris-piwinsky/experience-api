@@ -23,6 +23,8 @@ Start here, then use the guides in docs/:
 - [docs/rules-integration-and-expansion.md](docs/rules-integration-and-expansion.md): rules.yaml integration, evaluation behavior, and dynamic expansion guidance.
 - [docs/architecture.md](docs/architecture.md): component boundaries and request lifecycle.
 - [docs/mock-scenarios.md](docs/mock-scenarios.md): deterministic mock settings and expected outcomes.
+- [docs/approach-primer.md](docs/approach-primer.md): architecture rationale, tradeoffs, and production evolution path.
+- [docs/poc-demo-playbook.md](docs/poc-demo-playbook.md): facilitator script for running a high-confidence live POC demo.
 
 ## Fast start
 

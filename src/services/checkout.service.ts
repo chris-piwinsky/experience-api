@@ -13,6 +13,7 @@ import {
   type PaymentAdapter,
 } from "../adapters/payment.adapter";
 import { InMemoryJourneysStore, type JourneysStore } from "../data/journeys.store";
+import { logFlowError, logFlowStage, type FlowLogContext } from "../middleware/flow-logger";
 import { createRulesService, type RulesService } from "./rules.service";
 import { ApiError } from "../types/api-error";
 
@@ -37,7 +38,9 @@ export class CheckoutService {
     private readonly rulesService: RulesService = createRulesService(),
   ) {}
 
-  createJourney(input: CreateJourneyInput): CheckoutJourney {
+  createJourney(input: CreateJourneyInput, trace: FlowLogContext = {}): CheckoutJourney {
+    logFlowStage("service.create_journey.start", trace);
+
     if (!input.customerId || !input.currency) {
       throw new ApiError("VALIDATION_ERROR", "customerId and currency are required", 400);
     }
@@ -54,15 +57,20 @@ export class CheckoutService {
       updatedAt: now,
     };
 
-    return this.store.create(journey);
+    const createdJourney = this.store.create(journey);
+    logFlowStage("service.create_journey.completed", { ...trace, journeyId: createdJourney.id });
+    return createdJourney;
   }
 
-  getJourneyById(journeyId: string): CheckoutJourney {
+  getJourneyById(journeyId: string, trace: FlowLogContext = {}): CheckoutJourney {
+    logFlowStage("service.get_journey.start", { ...trace, journeyId });
+
     const journey = this.store.getById(journeyId);
     if (!journey) {
       throw new ApiError("JOURNEY_NOT_FOUND", "Checkout journey was not found", 404);
     }
 
+    logFlowStage("service.get_journey.completed", { ...trace, journeyId });
     return journey;
   }
 
@@ -73,10 +81,17 @@ export class CheckoutService {
     journeyId: string,
     stepId: CheckoutStepId,
     payload: Record<string, unknown>,
+    trace: FlowLogContext = {},
   ): CheckoutJourney {
-    const journey = this.getJourneyById(journeyId);
+    // Scope extends request trace with domain identifiers so downstream stage events stay self-describing.
+    const scope = { ...trace, journeyId, stepId };
+    logFlowStage("service.update_step.start", scope);
 
+    const journey = this.getJourneyById(journeyId, scope);
+
+    logFlowStage("service.rules.step_update.start", scope);
     const rulesResult = this.rulesService.evaluateForStepUpdate(journey, stepId, payload);
+    logFlowStage("service.rules.step_update.completed", scope, { issueCount: rulesResult.issues.length });
     this.assertBlockingIssues(rulesResult.issues);
     const nextValidationIssues = rulesResult.issues.filter((issue) => issue.severity === "warning");
 
@@ -106,92 +121,138 @@ export class CheckoutService {
       updatedAt: now,
     };
 
-    return this.store.update(nextJourney);
+    const updatedJourney = this.store.update(nextJourney);
+    logFlowStage("service.update_step.completed", scope, { status: updatedJourney.status });
+    return updatedJourney;
   }
 
-  validateJourney(journeyId: string): { valid: boolean; issues: ValidationIssue[] } {
-    const journey = this.getJourneyById(journeyId);
+  validateJourney(journeyId: string, trace: FlowLogContext = {}): { valid: boolean; issues: ValidationIssue[] } {
+    const scope = { ...trace, journeyId };
+    logFlowStage("service.validate_journey.start", scope);
+
+    const journey = this.getJourneyById(journeyId, scope);
+    logFlowStage("service.rules.validate.start", scope);
     const rulesResult = this.rulesService.evaluateForValidate(journey);
+    logFlowStage("service.rules.validate.completed", scope, { issueCount: rulesResult.issues.length });
     const issues = [...this.computeValidationIssues(journey), ...rulesResult.issues];
 
-    return {
+    const result = {
       valid: issues.every((issue) => issue.severity === "warning"),
       issues,
     };
+
+    logFlowStage("service.validate_journey.completed", scope, {
+      valid: result.valid,
+      issueCount: result.issues.length,
+    });
+
+    return result;
   }
 
   // Orchestrate submit: validate readiness, apply final rules, then call adapters in sequence.
   // Sequence: inventory reserve -> payment authorize -> fulfillment create.
   // Deterministic failures from adapters are mapped to stable error codes (409/503).
   // Async due to adapter latency and optional artificial delays in mock scenarios.
-  async submitJourney(journeyId: string): Promise<CheckoutJourney> {
-    const journey = this.getJourneyById(journeyId);
-    const validationResult = this.validateJourney(journeyId);
+  async submitJourney(journeyId: string, trace: FlowLogContext = {}): Promise<CheckoutJourney> {
+    // Submit has the richest architecture path, so we keep explicit stage logs per policy check and adapter hop.
+    const scope = { ...trace, journeyId };
+    logFlowStage("service.submit_journey.start", scope);
 
-    const submitRulesResult = this.rulesService.evaluateForSubmit(journey);
-    const submitBlockingIssues = submitRulesResult.issues.filter((issue) => issue.severity !== "warning");
-    if (submitBlockingIssues.length > 0) {
-      this.throwFromIssues("Checkout journey failed policy checks before submit", submitBlockingIssues);
+    try {
+      const journey = this.getJourneyById(journeyId, scope);
+      const validationResult = this.validateJourney(journeyId, scope);
+
+      logFlowStage("service.rules.submit.start", scope);
+      const submitRulesResult = this.rulesService.evaluateForSubmit(journey);
+      logFlowStage("service.rules.submit.completed", scope, { issueCount: submitRulesResult.issues.length });
+
+      const submitBlockingIssues = submitRulesResult.issues.filter((issue) => issue.severity !== "warning");
+      if (submitBlockingIssues.length > 0) {
+        this.throwFromIssues("Checkout journey failed policy checks before submit", submitBlockingIssues);
+      }
+
+      // Validation issues are flattened into API error details so clients can render field-level messages.
+      if (!validationResult.valid) {
+        this.throwFromIssues("Checkout journey is not ready for submit", validationResult.issues);
+      }
+
+      const cartPayload = (journey.steps.cart.payload ?? {}) as Record<string, unknown>;
+      const paymentPayload = (journey.steps["payment-method"].payload ?? {}) as Record<string, unknown>;
+      const shippingPayload = (journey.steps["shipping-address"].payload ?? {}) as Record<string, unknown>;
+
+      // Submit orchestration uses minimal payload shape to keep adapters isolated from route body details.
+      const items = Array.isArray(cartPayload.items)
+        ? (cartPayload.items as Array<{ sku: string; quantity: number }>).map((item) => ({
+            sku: item.sku,
+            quantity: item.quantity,
+          }))
+        : [];
+
+      logFlowStage("service.adapter.inventory.reserve.start", scope, { itemCount: items.length });
+      const inventoryReservation = await this.inventoryAdapter.reserveItems({
+        journeyId,
+        items,
+      });
+      logFlowStage("service.adapter.inventory.reserve.completed", scope, {
+        reserved: inventoryReservation.reserved,
+      });
+
+      if (!inventoryReservation.reserved) {
+        throw new ApiError("INVENTORY_UNAVAILABLE", "Inventory is unavailable for one or more items", 409);
+      }
+
+      logFlowStage("service.adapter.payment.authorize.start", scope, {
+        amount: Number(cartPayload.totalAmount ?? 0),
+      });
+      const paymentAuthorization = await this.paymentAdapter.authorize({
+        journeyId,
+        amount: Number(cartPayload.totalAmount ?? 0),
+        currency: "USD",
+        method: String(paymentPayload.method ?? "unknown"),
+      });
+      logFlowStage("service.adapter.payment.authorize.completed", scope, {
+        authorized: paymentAuthorization.authorized,
+      });
+
+      if (!paymentAuthorization.authorized) {
+        throw new ApiError("PAYMENT_DECLINED", "Payment authorization failed", 409);
+      }
+
+      logFlowStage("service.adapter.fulfillment.create_shipment.start", scope, {
+        destinationCountry: String(shippingPayload.country ?? "US"),
+      });
+      const fulfillmentResult = await this.fulfillmentAdapter.createShipment({
+        journeyId,
+        customerId: journey.customerId,
+        destinationCountry: String(shippingPayload.country ?? "US"),
+      });
+      logFlowStage("service.adapter.fulfillment.create_shipment.completed", scope, {
+        accepted: fulfillmentResult.accepted,
+      });
+
+      if (!fulfillmentResult.accepted) {
+        // Defensive mapping for any non-timeout negative fulfillment outcome.
+        throw new ApiError("DEPENDENCY_FAILURE", "Fulfillment did not accept shipment", 503);
+      }
+
+      const now = new Date().toISOString();
+      const submittedJourney: CheckoutJourney = {
+        ...journey,
+        status: "submitted",
+        submittedOrderId: fulfillmentResult.shipmentId ?? randomUUID(),
+        validationIssues: [],
+        updatedAt: now,
+      };
+
+      const storedJourney = this.store.update(submittedJourney);
+      logFlowStage("service.submit_journey.completed", scope, {
+        submittedOrderId: storedJourney.submittedOrderId,
+      });
+      return storedJourney;
+    } catch (error) {
+      logFlowError("service.submit_journey.error", scope, error);
+      throw error;
     }
-
-    // Validation issues are flattened into API error details so clients can render field-level messages.
-    if (!validationResult.valid) {
-      this.throwFromIssues("Checkout journey is not ready for submit", validationResult.issues);
-    }
-
-    const cartPayload = (journey.steps.cart.payload ?? {}) as Record<string, unknown>;
-    const paymentPayload = (journey.steps["payment-method"].payload ?? {}) as Record<string, unknown>;
-    const shippingPayload = (journey.steps["shipping-address"].payload ?? {}) as Record<string, unknown>;
-
-    // Submit orchestration uses minimal payload shape to keep adapters isolated from route body details.
-    const items = Array.isArray(cartPayload.items)
-      ? (cartPayload.items as Array<{ sku: string; quantity: number }>).map((item) => ({
-          sku: item.sku,
-          quantity: item.quantity,
-        }))
-      : [];
-
-    const inventoryReservation = await this.inventoryAdapter.reserveItems({
-      journeyId,
-      items,
-    });
-
-    if (!inventoryReservation.reserved) {
-      throw new ApiError("INVENTORY_UNAVAILABLE", "Inventory is unavailable for one or more items", 409);
-    }
-
-    const paymentAuthorization = await this.paymentAdapter.authorize({
-      journeyId,
-      amount: Number(cartPayload.totalAmount ?? 0),
-      currency: "USD",
-      method: String(paymentPayload.method ?? "unknown"),
-    });
-
-    if (!paymentAuthorization.authorized) {
-      throw new ApiError("PAYMENT_DECLINED", "Payment authorization failed", 409);
-    }
-
-    const fulfillmentResult = await this.fulfillmentAdapter.createShipment({
-      journeyId,
-      customerId: journey.customerId,
-      destinationCountry: String(shippingPayload.country ?? "US"),
-    });
-
-    if (!fulfillmentResult.accepted) {
-      // Defensive mapping for any non-timeout negative fulfillment outcome.
-      throw new ApiError("DEPENDENCY_FAILURE", "Fulfillment did not accept shipment", 503);
-    }
-
-    const now = new Date().toISOString();
-    const submittedJourney: CheckoutJourney = {
-      ...journey,
-      status: "submitted",
-      submittedOrderId: fulfillmentResult.shipmentId ?? randomUUID(),
-      validationIssues: [],
-      updatedAt: now,
-    };
-
-    return this.store.update(submittedJourney);
   }
 
   private computeJourneyStatus(journey: CheckoutJourney): CheckoutStatus {

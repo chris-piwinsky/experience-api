@@ -12,6 +12,8 @@ This folder contains the detailed project documentation for the checkout journey
 - [mock-scenarios.md](mock-scenarios.md): deterministic mock toggles and expected behavior.
 - [customer-journey-requirements.md](customer-journey-requirements.md): business meaning, requirements, and acceptance boundaries for the checkout journey.
 - [rules-integration-and-expansion.md](rules-integration-and-expansion.md): rules.yaml integration, evaluation order, and dynamic expansion guidance.
+- [poc-demo-playbook.md](poc-demo-playbook.md): facilitator-ready demo script and narrative for live POC sessions.
+- [approach-primer.md](approach-primer.md): why this architecture approach fits the POC and how to evolve it.
 
 ## Suggested Reading Order
 
@@ -23,6 +25,8 @@ This folder contains the detailed project documentation for the checkout journey
 6. [rules-integration-and-expansion.md](rules-integration-and-expansion.md)
 7. [architecture.md](architecture.md)
 8. [mock-scenarios.md](mock-scenarios.md)
+9. [approach-primer.md](approach-primer.md)
+10. [poc-demo-playbook.md](poc-demo-playbook.md)
 
 ## Source of truth
 

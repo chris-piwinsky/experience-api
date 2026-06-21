@@ -1,5 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 
+import { logFlowError, logFlowStage } from "../middleware/flow-logger";
 import { createCheckoutService } from "../services/checkout.service";
 import { ApiError } from "../types/api-error";
 import { CHECKOUT_STEP_IDS, type CheckoutStepId } from "../types/checkout";
@@ -33,10 +34,32 @@ function readPathParam(value: string | string[] | undefined, name: string): stri
 checkoutRouter.post("/journeys", (req: Request, res: Response, next: NextFunction) => {
   try {
     const ctx = requestContext(res);
+    // Route-stage events mark entry/exit boundaries so demos can map requests to architecture layers.
+    logFlowStage("route.create_journey.enter", {
+      requestId: ctx.requestId,
+      correlationId: ctx.correlationId,
+      method: req.method,
+      route: req.originalUrl,
+    });
+
     const journey = checkoutService.createJourney({
       customerId: req.body?.customerId,
       currency: req.body?.currency,
       locale: req.body?.locale,
+    }, {
+      // Forward the same trace context into the service so route and service logs can be correlated.
+      requestId: ctx.requestId,
+      correlationId: ctx.correlationId,
+      method: req.method,
+      route: req.originalUrl,
+    });
+
+    logFlowStage("route.create_journey.response", {
+      requestId: ctx.requestId,
+      correlationId: ctx.correlationId,
+      method: req.method,
+      route: req.originalUrl,
+      journeyId: journey.id,
     });
 
     res.status(201).json({
@@ -46,6 +69,17 @@ checkoutRouter.post("/journeys", (req: Request, res: Response, next: NextFunctio
       timestamp: ctx.timestamp,
     });
   } catch (error) {
+    const ctx = requestContext(res);
+    logFlowError(
+      "route.create_journey.error",
+      {
+        requestId: ctx.requestId,
+        correlationId: ctx.correlationId,
+        method: req.method,
+        route: req.originalUrl,
+      },
+      error,
+    );
     next(error);
   }
 });
@@ -54,7 +88,29 @@ checkoutRouter.get("/journeys/:journeyId", (req: Request, res: Response, next: N
   try {
     const ctx = requestContext(res);
     const journeyId = readPathParam(req.params.journeyId, "journeyId");
-    const journey = checkoutService.getJourneyById(journeyId);
+    logFlowStage("route.get_journey.enter", {
+      requestId: ctx.requestId,
+      correlationId: ctx.correlationId,
+      method: req.method,
+      route: req.originalUrl,
+      journeyId,
+    });
+
+    const journey = checkoutService.getJourneyById(journeyId, {
+      requestId: ctx.requestId,
+      correlationId: ctx.correlationId,
+      method: req.method,
+      route: req.originalUrl,
+      journeyId,
+    });
+
+    logFlowStage("route.get_journey.response", {
+      requestId: ctx.requestId,
+      correlationId: ctx.correlationId,
+      method: req.method,
+      route: req.originalUrl,
+      journeyId,
+    });
 
     res.status(200).json({
       data: journey,
@@ -63,6 +119,18 @@ checkoutRouter.get("/journeys/:journeyId", (req: Request, res: Response, next: N
       timestamp: ctx.timestamp,
     });
   } catch (error) {
+    const ctx = requestContext(res);
+    logFlowError(
+      "route.get_journey.error",
+      {
+        requestId: ctx.requestId,
+        correlationId: ctx.correlationId,
+        method: req.method,
+        route: req.originalUrl,
+        journeyId: req.params.journeyId,
+      },
+      error,
+    );
     next(error);
   }
 });
@@ -74,6 +142,14 @@ checkoutRouter.patch("/journeys/:journeyId/steps/:stepId", (req: Request, res: R
     const ctx = requestContext(res);
     const journeyId = readPathParam(req.params.journeyId, "journeyId");
     const stepId = readPathParam(req.params.stepId, "stepId");
+    logFlowStage("route.update_step.enter", {
+      requestId: ctx.requestId,
+      correlationId: ctx.correlationId,
+      method: req.method,
+      route: req.originalUrl,
+      journeyId,
+      stepId,
+    });
 
     if (!CHECKOUT_STEP_IDS.includes(stepId as CheckoutStepId)) {
       throw new ApiError("VALIDATION_ERROR", `Unsupported stepId: ${stepId}`, 400);
@@ -88,7 +164,25 @@ checkoutRouter.patch("/journeys/:journeyId/steps/:stepId", (req: Request, res: R
       journeyId,
       stepId as CheckoutStepId,
       req.body.payload as Record<string, unknown>,
+      {
+        // Include journey and step identifiers so stage logs can pinpoint exactly where flow paused.
+        requestId: ctx.requestId,
+        correlationId: ctx.correlationId,
+        method: req.method,
+        route: req.originalUrl,
+        journeyId,
+        stepId,
+      },
     );
+
+    logFlowStage("route.update_step.response", {
+      requestId: ctx.requestId,
+      correlationId: ctx.correlationId,
+      method: req.method,
+      route: req.originalUrl,
+      journeyId,
+      stepId,
+    });
 
     res.status(200).json({
       data: journey,
@@ -97,6 +191,19 @@ checkoutRouter.patch("/journeys/:journeyId/steps/:stepId", (req: Request, res: R
       timestamp: ctx.timestamp,
     });
   } catch (error) {
+    const ctx = requestContext(res);
+    logFlowError(
+      "route.update_step.error",
+      {
+        requestId: ctx.requestId,
+        correlationId: ctx.correlationId,
+        method: req.method,
+        route: req.originalUrl,
+        journeyId: req.params.journeyId,
+        stepId: req.params.stepId,
+      },
+      error,
+    );
     next(error);
   }
 });
@@ -107,7 +214,32 @@ checkoutRouter.post("/journeys/:journeyId/validate", (req: Request, res: Respons
   try {
     const ctx = requestContext(res);
     const journeyId = readPathParam(req.params.journeyId, "journeyId");
-    const result = checkoutService.validateJourney(journeyId);
+    logFlowStage("route.validate_journey.enter", {
+      requestId: ctx.requestId,
+      correlationId: ctx.correlationId,
+      method: req.method,
+      route: req.originalUrl,
+      journeyId,
+    });
+
+    const result = checkoutService.validateJourney(journeyId, {
+      requestId: ctx.requestId,
+      correlationId: ctx.correlationId,
+      method: req.method,
+      route: req.originalUrl,
+      journeyId,
+    });
+
+    logFlowStage("route.validate_journey.response", {
+      requestId: ctx.requestId,
+      correlationId: ctx.correlationId,
+      method: req.method,
+      route: req.originalUrl,
+      journeyId,
+    }, {
+      issueCount: result.issues.length,
+      valid: result.valid,
+    });
 
     res.status(200).json({
       data: result,
@@ -116,6 +248,18 @@ checkoutRouter.post("/journeys/:journeyId/validate", (req: Request, res: Respons
       timestamp: ctx.timestamp,
     });
   } catch (error) {
+    const ctx = requestContext(res);
+    logFlowError(
+      "route.validate_journey.error",
+      {
+        requestId: ctx.requestId,
+        correlationId: ctx.correlationId,
+        method: req.method,
+        route: req.originalUrl,
+        journeyId: req.params.journeyId,
+      },
+      error,
+    );
     next(error);
   }
 });
@@ -127,7 +271,31 @@ checkoutRouter.post("/journeys/:journeyId/submit", async (req: Request, res: Res
   try {
     const ctx = requestContext(res);
     const journeyId = readPathParam(req.params.journeyId, "journeyId");
-    const journey = await checkoutService.submitJourney(journeyId);
+    logFlowStage("route.submit_journey.enter", {
+      requestId: ctx.requestId,
+      correlationId: ctx.correlationId,
+      method: req.method,
+      route: req.originalUrl,
+      journeyId,
+    });
+
+    const journey = await checkoutService.submitJourney(journeyId, {
+      requestId: ctx.requestId,
+      correlationId: ctx.correlationId,
+      method: req.method,
+      route: req.originalUrl,
+      journeyId,
+    });
+
+    logFlowStage("route.submit_journey.response", {
+      requestId: ctx.requestId,
+      correlationId: ctx.correlationId,
+      method: req.method,
+      route: req.originalUrl,
+      journeyId,
+    }, {
+      submittedOrderId: journey.submittedOrderId,
+    });
 
     res.status(200).json({
       data: journey,
@@ -136,6 +304,18 @@ checkoutRouter.post("/journeys/:journeyId/submit", async (req: Request, res: Res
       timestamp: ctx.timestamp,
     });
   } catch (error) {
+    const ctx = requestContext(res);
+    logFlowError(
+      "route.submit_journey.error",
+      {
+        requestId: ctx.requestId,
+        correlationId: ctx.correlationId,
+        method: req.method,
+        route: req.originalUrl,
+        journeyId: req.params.journeyId,
+      },
+      error,
+    );
     next(error);
   }
 });

@@ -45,6 +45,35 @@ flowchart LR
 5. Response envelope includes data plus requestId/correlationId/timestamp.
 6. Request logger emits one structured completion log per request.
 
+## Flow Stage Legend
+
+Use this legend when filtering `flow_stage` and `flow_stage_error` logs during demos.
+
+| Flow stage | Architecture layer | Meaning |
+| --- | --- | --- |
+| route.create_journey.enter | Routes | Create-journey request entered HTTP handler |
+| route.create_journey.response | Routes | Create-journey response sent |
+| route.get_journey.enter | Routes | Get-journey request entered HTTP handler |
+| route.get_journey.response | Routes | Get-journey response sent |
+| route.update_step.enter | Routes | Step update request entered HTTP handler |
+| route.update_step.response | Routes | Step update response sent |
+| route.validate_journey.enter | Routes | Validate request entered HTTP handler |
+| route.validate_journey.response | Routes | Validate response sent |
+| route.submit_journey.enter | Routes | Submit request entered HTTP handler |
+| route.submit_journey.response | Routes | Submit response sent |
+| service.create_journey.start/completed | Service | Create journey orchestration start and finish |
+| service.get_journey.start/completed | Service | Journey lookup start and finish |
+| service.update_step.start/completed | Service | Step update orchestration start and finish |
+| service.rules.step_update.start/completed | Rules service | Step-level policy checks start and finish |
+| service.validate_journey.start/completed | Service | Validate orchestration start and finish |
+| service.rules.validate.start/completed | Rules service | Validate policy checks start and finish |
+| service.submit_journey.start/completed | Service | Submit orchestration start and finish |
+| service.rules.submit.start/completed | Rules service | Pre-submit policy checks start and finish |
+| service.adapter.inventory.reserve.start/completed | Inventory adapter | Inventory reservation attempt and outcome |
+| service.adapter.payment.authorize.start/completed | Payment adapter | Payment authorization attempt and outcome |
+| service.adapter.fulfillment.create_shipment.start/completed | Fulfillment adapter | Shipment creation attempt and outcome |
+| route.*.error, service.submit_journey.error | Route or service | Error event with canonical errorCode and message |
+
 ## Request Sequence Diagram
 
 ```mermaid
