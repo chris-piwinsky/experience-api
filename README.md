@@ -26,6 +26,27 @@ Start here, then use the guides in docs/:
 - [docs/approach-primer.md](docs/approach-primer.md): architecture rationale, tradeoffs, and production evolution path.
 - [docs/poc-demo-playbook.md](docs/poc-demo-playbook.md): facilitator script for running a high-confidence live POC demo.
 
+## Teaching navigation
+
+Use this sequence for a fast walkthrough of the approach:
+
+1. Start from request lifecycle:
+	- [Request lifecycle](docs/architecture.md#request-lifecycle)
+	- [Request Sequence Diagram](docs/architecture.md#request-sequence-diagram)
+2. Show one happy and one degraded flow end-to-end:
+	- [Happy path integration test](src/__tests__/integration/checkout.api.test.ts)
+	- [Submit Scenario Decision Diagram](docs/mock-scenarios.md#submit-scenario-decision-diagram)
+3. Tie each flow to test cases:
+	- [Payment declined test](src/__tests__/integration/checkout.api.test.ts)
+	- [Inventory unavailable test](src/__tests__/integration/checkout.api.test.ts)
+	- [Fulfillment timeout test](src/__tests__/integration/checkout.api.test.ts)
+4. Show one rules.yaml change and resulting behavior difference:
+	- [Rules integration guide](docs/rules-integration-and-expansion.md)
+	- [rules.yaml](config/rules.yaml)
+	- [Rule coverage examples in integration tests](src/__tests__/integration/checkout.api.test.ts)
+5. Close with production evolution path:
+	- [Evolution path](docs/approach-primer.md#evolution-path-to-production-aligned-architecture)
+
 ## Fast start
 
 1. Install dependencies:
