@@ -875,7 +875,7 @@ When returning after a break:
 
 - 2026-06-19: Chosen API style is single journey resource with step updates.
 - 2026-06-19: Auth excluded from MVP.
-- 2026-06-19: Downstreams will be mocked only.
+- 2026-06-19: Downstream services will be mocked only.
 - 2026-06-19: Mock behavior should include deterministic degraded scenarios.
 - 2026-06-19: Persistence decision deferred. Start with in-memory abstraction.
 - 2026-06-19: Validation and eligibility rules will be config-driven via config/rules.yaml.
